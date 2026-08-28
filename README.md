@@ -1,4 +1,4 @@
-# 안녕하세요, 김서연입니다 👋
+# 안녕하세요, 홍길동입니다 👋
 
 데이터로 문제를 발견하고, 코드로 답을 만드는 걸 좋아하는 **주니어 데이터 사이언티스트**예요.
 
@@ -26,7 +26,7 @@
 
 ## 📫 연락처
 
-- Email: seoyeon.kim.dev@example.com
+- Email: gildong.hong.dev@example.com
 - Blog: https://example-blog.dev
 
 > "데이터는 질문을 던지고, 모델은 답을 찾아간다."
