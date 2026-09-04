@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import re
 import sys
 import unicodedata
 from datetime import date, timedelta
 from typing import Callable, Sequence
 
-from todoapp.config import get_db_path
-from todoapp.database import open_db
+from todoapp import auth_flow
+from todoapp.auth_flow import NotLoggedIn
+from todoapp.config import get_storage_backend
 from todoapp.models import (
     PRIORITY_LABELS,
     Todo,
@@ -18,6 +20,11 @@ from todoapp.models import (
     normalize_due_date,
 )
 from todoapp.service import SCOPES, TodoNotFound, TodoService
+from todoapp.session import SESSION_PATH, clear as clear_session
+from todoapp.session import load as load_session
+from todoapp.session import save as save_session
+from todoapp.stores import build_store
+from todoapp.supabase_client import AuthError
 
 _RELATIVE_DAYS_RE = re.compile(r"^([+-])(\d+)d$", re.IGNORECASE)
 _TODAY_WORDS = {"today", "오늘"}
@@ -186,7 +193,21 @@ def build_parser() -> argparse.ArgumentParser:
     _register_rm(sub)
     _register_edit(sub)
     sub.add_parser("tags", help="태그 목록")
+    _register_auth(sub)
     return parser
+
+
+def _register_auth(sub: argparse._SubParsersAction) -> None:
+    """Supabase 저장소를 쓸 때 필요한 로그인 명령."""
+    for name, help_text in (("login", "로그인"), ("signup", "회원가입")):
+        p = sub.add_parser(name, help=help_text)
+        p.add_argument("--email", help="이메일 (생략하면 물어봅니다)")
+        p.add_argument(
+            "--password",
+            help="비밀번호 (생략하면 화면에 안 보이게 물어봅니다. 생략을 권합니다)",
+        )
+    sub.add_parser("logout", help="로그아웃")
+    sub.add_parser("whoami", help="현재 로그인한 계정 보기")
 
 
 # ---------------------------------------------------------------- 명령 처리
@@ -267,6 +288,57 @@ def _cmd_tags(args: argparse.Namespace, service: TodoService, confirm: Confirm) 
     return 0
 
 
+def _ask_credentials(args: argparse.Namespace) -> tuple[str, str]:
+    """이메일·비밀번호를 확보한다. 비밀번호는 getpass로 받아 화면에 남기지 않는다."""
+    email = args.email or input("이메일: ").strip()
+    password = args.password or getpass.getpass("비밀번호: ")
+    return email, password
+
+
+def _cmd_login(args: argparse.Namespace) -> int:
+    email, password = _ask_credentials(args)
+    tokens = auth_flow.login(email, password)
+    save_session(tokens, SESSION_PATH)
+    print(f"로그인했습니다. ({tokens.email})")
+    return 0
+
+
+def _cmd_signup(args: argparse.Namespace) -> int:
+    email, password = _ask_credentials(args)
+    tokens = auth_flow.signup(email, password)
+    save_session(tokens, SESSION_PATH)
+    print(f"가입하고 로그인했습니다. ({tokens.email})")
+    return 0
+
+
+def _cmd_logout(args: argparse.Namespace) -> int:
+    if load_session(SESSION_PATH) is None:
+        print("로그인 상태가 아닙니다.")
+        return 0
+    auth_flow.revoke()
+    clear_session(SESSION_PATH)
+    print("로그아웃했습니다.")
+    return 0
+
+
+def _cmd_whoami(args: argparse.Namespace) -> int:
+    tokens = load_session(SESSION_PATH)
+    if tokens is None:
+        print("로그인 상태가 아닙니다. `todo login` 으로 로그인하세요.")
+        return 0
+    # 토큰 값은 출력하지 않는다
+    print(f"{tokens.email or '(이메일 미확인)'} · 저장소 {get_storage_backend()}")
+    return 0
+
+
+_AUTH_COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
+    "login": _cmd_login,
+    "signup": _cmd_signup,
+    "logout": _cmd_logout,
+    "whoami": _cmd_whoami,
+}
+
+
 _COMMANDS: dict[str, Callable[[argparse.Namespace, TodoService, Confirm], int]] = {
     "add": _cmd_add,
     "list": _cmd_list,
@@ -311,10 +383,48 @@ def main(
         parser.print_help()
         return 2
 
+    if args.command in _AUTH_COMMANDS:
+        # 인증 명령은 저장소가 필요 없다
+        try:
+            return _AUTH_COMMANDS[args.command](args)
+        except (AuthError, NotLoggedIn) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
     if service is not None:
         return _dispatch(args, service, confirm or _default_confirm)
-    with open_db(get_db_path()) as conn:
-        return _dispatch(args, TodoService(conn), confirm or _default_confirm)
+
+    try:
+        store = _open_store()
+    except (NotLoggedIn, AuthError, RuntimeError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    try:
+        return _dispatch(args, TodoService(store), confirm or _default_confirm)
+    finally:
+        close = getattr(store, "close", None)
+        if callable(close):
+            close()
+
+
+def _open_store():
+    """설정에 맞는 저장소를 연다.
+
+    Supabase면 저장된 세션을 물린다. 토큰이 갱신되면 파일도 갱신한다 —
+    안 하면 매 실행마다 갱신 왕복이 한 번씩 더 든다.
+    """
+    if get_storage_backend() == "sqlite":
+        return build_store("sqlite")
+    tokens = load_session(SESSION_PATH)
+    if tokens is None:
+        raise NotLoggedIn(
+            "Supabase 저장소를 쓰려면 로그인이 필요합니다: python3 todo.py login"
+        )
+    store = build_store("supabase", tokens=tokens)
+    fresh = getattr(store, "tokens", None)
+    if fresh is not None and fresh != tokens:
+        save_session(fresh, SESSION_PATH)
+    return store
 
 
 if __name__ == "__main__":

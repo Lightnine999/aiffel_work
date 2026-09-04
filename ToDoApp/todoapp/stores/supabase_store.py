@@ -282,6 +282,8 @@ class SupabaseStore:
     def __init__(self, client: "Client", user_id: str | None = None) -> None:
         self._client = client
         self.user_id = user_id
+        # build_store가 갱신된 토큰을 여기 담는다. 호출부가 저장 여부를 판단한다.
+        self.tokens = None
         self.todos = SupabaseTodoStore(client)
         self.tags = SupabaseTagStore(client)
 

@@ -86,8 +86,10 @@ class TestBuildStore:
         finally:
             built.close()
 
-    def test_supabase는_아직_구현되지_않았다고_알린다(self):
-        with pytest.raises(NotImplementedError, match="Supabase"):
+    def test_supabase는_토큰_없이는_거부한다(self):
+        from todoapp.auth_flow import NotLoggedIn
+
+        with pytest.raises(NotLoggedIn, match="로그인"):
             build_store("supabase")
 
     def test_알_수_없는_이름은_거부한다(self):

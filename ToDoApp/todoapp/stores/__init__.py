@@ -72,8 +72,22 @@ class Store(Protocol):
 __all__ = ["Store", "TodoStore", "TagStore", "build_store", "coerce_store"]
 
 
-def build_store(backend: str | None = None) -> Store:
-    """설정에 맞는 저장소를 만든다. 여기가 유일한 분기점이다."""
+def build_store(
+    backend: str | None = None,
+    *,
+    tokens=None,
+    db_path=None,
+    init_schema: bool = True,
+) -> Store:
+    """설정에 맞는 저장소를 만든다. 여기가 유일한 분기점이다.
+
+    Supabase는 로그인 토큰이 있어야 한다. 만료된 토큰은 한 번 갱신을 시도하고,
+    갱신된 토큰을 `store.tokens`에 담아 돌려준다 — 호출부가 그걸 다시 저장한다.
+
+    `init_schema=False`는 SQLite에서 스키마 적용을 건너뛴다. 웹처럼 요청마다
+    저장소를 새로 여는 곳에서 쓴다 — 매 요청 스키마를 다시 돌릴 이유가 없다.
+    `db_path`는 SQLite 전용이며, 생략하면 설정값을 쓴다.
+    """
     from todoapp.config import get_storage_backend
 
     name = (backend or get_storage_backend()).strip().lower()
@@ -82,13 +96,25 @@ def build_store(backend: str | None = None) -> Store:
         from todoapp.database import connect, initialize
         from todoapp.stores.sqlite_store import SqliteStore
 
-        conn = connect(get_db_path())
-        initialize(conn)
+        conn = connect(db_path or get_db_path())
+        if init_schema:
+            initialize(conn)
         return SqliteStore(conn)
     if name == "supabase":
-        raise NotImplementedError(
-            "Supabase 저장소는 아직 구현되지 않았습니다. .env의 STORAGE=sqlite 로 두세요."
-        )
+        from todoapp.auth_flow import NotLoggedIn
+        from todoapp.stores.supabase_store import SupabaseStore
+        from todoapp.supabase_client import attach_session, build_client
+
+        if tokens is None:
+            raise NotLoggedIn(
+                "Supabase 저장소를 쓰려면 로그인이 필요합니다. "
+                "터미널에서는 `python3 todo.py login`, 웹에서는 로그인 화면을 쓰세요."
+            )
+        client = build_client()
+        fresh = attach_session(client, tokens)
+        store = SupabaseStore(client, user_id=fresh.user_id)
+        store.tokens = fresh
+        return store
     raise ValueError(f"알 수 없는 STORAGE 값입니다: {name!r} (가능: sqlite, supabase)")
 
 
