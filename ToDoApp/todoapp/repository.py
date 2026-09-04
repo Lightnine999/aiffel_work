@@ -7,13 +7,46 @@
 from __future__ import annotations
 
 import sqlite3
+from typing import Sequence
 
 from todoapp.models import (
     DEFAULT_TAG_COLOR,
     Tag,
+    Todo,
     normalize_color,
+    normalize_due_date,
+    normalize_priority,
     normalize_tag_name,
+    normalize_title,
 )
+
+
+class _Unset:
+    """'값을 주지 않았다'를 뜻하는 센티널. None(값을 비워라)과 구분하려고 쓴다."""
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __repr__(self) -> str:
+        return "UNSET"
+
+    def __bool__(self) -> bool:
+        return False
+
+
+UNSET = _Unset()
+
+
+def is_set(value: object) -> bool:
+    """UNSET 센티널이 아닌 '실제로 주어진 값'인지 판정한다.
+
+    상위 계층이 isinstance(x, _Unset)처럼 비공개 이름을 쓰지 않게 하려고 노출한다.
+    """
+    return not isinstance(value, _Unset)
 
 
 def row_to_tag(row: sqlite3.Row) -> Tag:
@@ -77,3 +110,146 @@ class TagRepository:
             "DELETE FROM tags WHERE id NOT IN (SELECT tag_id FROM todo_tags)"
         )
         return cursor.rowcount
+
+
+def row_to_todo(row: sqlite3.Row, tags: tuple[Tag, ...] = ()) -> Todo:
+    """DB 행을 도메인 객체로. is_done 0/1 → bool 변환은 여기서만 한다."""
+    return Todo(
+        id=row["id"],
+        title=row["title"],
+        notes=row["notes"],
+        is_done=bool(row["is_done"]),
+        due_date=row["due_date"],
+        priority=row["priority"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        completed_at=row["completed_at"],
+        tags=tags,
+    )
+
+
+def _clean_notes(notes: str | None) -> str | None:
+    """공백만 있는 메모는 없는 것으로 본다."""
+    return notes.strip() if isinstance(notes, str) and notes.strip() else None
+
+
+_TODO_COLUMNS = """
+    id, title, notes, is_done, due_date, priority,
+    created_at, updated_at, completed_at
+"""
+
+
+class TodoRepository:
+    """할 일 CRUD와 태그 연결. 트랜잭션 경계는 상위(service)가 잡는다."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def add(
+        self,
+        title: str,
+        *,
+        notes: str | None = None,
+        due_date: str | None = None,
+        priority: int | str | None = None,
+    ) -> int:
+        cursor = self._conn.execute(
+            "INSERT INTO todos (title, notes, due_date, priority) VALUES (?, ?, ?, ?)",
+            (
+                normalize_title(title),
+                _clean_notes(notes),
+                normalize_due_date(due_date),
+                normalize_priority(priority),
+            ),
+        )
+        return int(cursor.lastrowid)
+
+    def get(self, todo_id: int) -> Todo | None:
+        row = self._conn.execute(
+            f"SELECT {_TODO_COLUMNS} FROM todos WHERE id = ?", (todo_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return row_to_todo(row, self.load_tags([todo_id]).get(todo_id, ()))
+
+    def update(
+        self,
+        todo_id: int,
+        *,
+        title: str | _Unset = UNSET,
+        notes: str | None | _Unset = UNSET,
+        due_date: str | None | _Unset = UNSET,
+        priority: int | str | _Unset = UNSET,
+    ) -> bool:
+        """준 필드만 바꾼다. UNSET은 '건드리지 마라', None은 '비워라'."""
+        assignments: list[str] = []
+        params: list[object] = []
+        if is_set(title):
+            assignments.append("title = ?")
+            params.append(normalize_title(title))
+        if is_set(notes):
+            assignments.append("notes = ?")
+            params.append(_clean_notes(notes))
+        if is_set(due_date):
+            assignments.append("due_date = ?")
+            params.append(normalize_due_date(due_date))
+        if is_set(priority):
+            assignments.append("priority = ?")
+            params.append(normalize_priority(priority))
+        if not assignments:
+            return False
+        params.append(todo_id)
+        cursor = self._conn.execute(
+            f"UPDATE todos SET {', '.join(assignments)} WHERE id = ?", params
+        )
+        return cursor.rowcount > 0
+
+    def set_done(self, todo_id: int, done: bool) -> bool:
+        """완료 표시를 바꾼다. completed_at·updated_at은 트리거가 알아서 채운다."""
+        cursor = self._conn.execute(
+            "UPDATE todos SET is_done = ? WHERE id = ?", (1 if done else 0, todo_id)
+        )
+        return cursor.rowcount > 0
+
+    def delete(self, todo_id: int) -> bool:
+        """할 일을 지운다. todo_tags 연결은 ON DELETE CASCADE가 정리한다."""
+        cursor = self._conn.execute("DELETE FROM todos WHERE id = ?", (todo_id,))
+        return cursor.rowcount > 0
+
+    def replace_tags(self, todo_id: int, tag_ids: Sequence[int]) -> None:
+        """이 할 일의 태그 연결을 주어진 목록으로 통째로 교체한다."""
+        self._conn.execute("DELETE FROM todo_tags WHERE todo_id = ?", (todo_id,))
+        unique_ids = list(dict.fromkeys(tag_ids))
+        if unique_ids:
+            self._conn.executemany(
+                "INSERT INTO todo_tags (todo_id, tag_id) VALUES (?, ?)",
+                [(todo_id, tag_id) for tag_id in unique_ids],
+            )
+
+    def load_tags(self, todo_ids: Sequence[int]) -> dict[int, tuple[Tag, ...]]:
+        """여러 할 일의 태그를 쿼리 한 번으로 가져온다.
+
+        할 일마다 태그를 따로 조회하면 목록 10개에 쿼리 11번(N+1)이 된다.
+        여기서 한 번에 받아 파이썬에서 묶는다.
+
+        바인딩 변수를 id 개수만큼 쓴다. SQLite의 상한은 32766개(3.32+ 기본값)라
+        개인용 규모에서는 문제되지 않는다.
+        """
+        ids = list(dict.fromkeys(todo_ids))
+        if not ids:
+            return {}
+        placeholders = ", ".join("?" * len(ids))
+        rows = self._conn.execute(
+            f"""
+            SELECT tt.todo_id, g.id, g.name, g.color
+              FROM todo_tags tt
+              JOIN tags g ON g.id = tt.tag_id
+             WHERE tt.todo_id IN ({placeholders})
+             ORDER BY g.name COLLATE NOCASE ASC
+            """,
+            ids,
+        ).fetchall()
+        grouped: dict[int, list[Tag]] = {todo_id: [] for todo_id in ids}
+        for row in rows:
+            grouped[row["todo_id"]].append(row_to_tag(row))
+        return {todo_id: tuple(tag_list) for todo_id, tag_list in grouped.items()}
