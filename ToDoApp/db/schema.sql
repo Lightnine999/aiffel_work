@@ -60,6 +60,11 @@ BEGIN
      WHERE id = OLD.id;
 END;
 
+-- 아래 뷰 2개는 `sqlite3 db/todo.db` 로 DB를 직접 들여다볼 때 쓰는 점검용이다.
+-- 앱 코드는 이 뷰를 쓰지 않고 repository.py의 파라미터화된 쿼리를 쓴다
+-- (테스트에서 날짜를 고정할 수 있어야 하므로). 두 경로가 갈라지지 않도록
+-- tests/test_repository_list.py::TestViewConsistency가 결과 일치를 검사한다.
+
 -- 뷰: 오늘 할 일 (마감일이 오늘이거나 이미 지난 미완료 항목)
 CREATE VIEW IF NOT EXISTS v_today_todos AS
 SELECT t.*
@@ -67,7 +72,7 @@ SELECT t.*
  WHERE t.is_done = 0
    AND t.due_date IS NOT NULL
    AND t.due_date <= date('now', 'localtime')
- ORDER BY t.due_date ASC, t.priority ASC;
+ ORDER BY t.due_date ASC, t.priority ASC, t.id ASC;
 
 -- 뷰: 목록 화면용 (태그를 한 줄로 합쳐서 조회)
 CREATE VIEW IF NOT EXISTS v_todo_list AS
@@ -81,4 +86,5 @@ SELECT t.id,
   LEFT JOIN todo_tags tt ON tt.todo_id = t.id
   LEFT JOIN tags g       ON g.id = tt.tag_id
  GROUP BY t.id
- ORDER BY t.is_done ASC, t.due_date IS NULL, t.due_date ASC;
+ ORDER BY t.is_done ASC, t.due_date IS NULL ASC, t.due_date ASC,
+          t.priority ASC, t.id ASC;

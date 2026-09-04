@@ -133,6 +133,16 @@ def _clean_notes(notes: str | None) -> str | None:
     return notes.strip() if isinstance(notes, str) and notes.strip() else None
 
 
+def _escape_like(value: str) -> str:
+    r"""LIKE 패턴에서 특별한 뜻을 가진 글자를 무력화한다.
+
+    escape하지 않으면 사용자가 '%'를 검색할 때 전체가 일치해 버린다.
+    역슬래시를 먼저 바꿔야 한다 — 나중에 하면 방금 붙인 escape 문자까지
+    이중으로 바뀐다.
+    """
+    return value.replace("\\", r"\\").replace("%", r"\%").replace("_", r"\_")
+
+
 _TODO_COLUMNS = """
     id, title, notes, is_done, due_date, priority,
     created_at, updated_at, completed_at
@@ -253,3 +263,69 @@ class TodoRepository:
         for row in rows:
             grouped[row["todo_id"]].append(row_to_tag(row))
         return {todo_id: tuple(tag_list) for todo_id, tag_list in grouped.items()}
+
+    _ORDER_BY = (
+        "ORDER BY is_done ASC, due_date IS NULL ASC, due_date ASC, priority ASC, id ASC"
+    )
+
+    def list(
+        self,
+        *,
+        done: bool | None = None,
+        tag: str | None = None,
+        keyword: str | None = None,
+        due_on_or_before: str | None = None,
+        due_before: str | None = None,
+        has_due: bool | None = None,
+    ) -> list[Todo]:
+        """조건에 맞는 할 일을 정렬해 돌려준다. 태그도 함께 채운다.
+
+        None인 필터는 '거르지 않음'을 뜻한다.
+        정렬: 미완료 먼저 → 마감일 있는 것 먼저 → 임박한 순 → 우선순위 → 등록순.
+        """
+        clauses: list[str] = []
+        params: list[object] = []
+
+        if done is not None:
+            clauses.append("is_done = ?")
+            params.append(1 if done else 0)
+
+        if tag is not None:
+            # JOIN이 아니라 EXISTS를 쓴다. JOIN으로 걸면 태그가 여러 개 붙은
+            # 할 일이 여러 행으로 튀어나온다.
+            clauses.append(
+                """EXISTS (
+                       SELECT 1 FROM todo_tags tt
+                         JOIN tags g ON g.id = tt.tag_id
+                        WHERE tt.todo_id = todos.id AND g.name = ?
+                   )"""
+            )
+            params.append(normalize_tag_name(tag))
+
+        if keyword is not None and str(keyword).strip():
+            pattern = f"%{_escape_like(str(keyword).strip())}%"
+            clauses.append(
+                r"(title LIKE ? ESCAPE '\' OR COALESCE(notes, '') LIKE ? ESCAPE '\')"
+            )
+            params.extend([pattern, pattern])
+
+        if due_on_or_before is not None:
+            clauses.append("due_date IS NOT NULL AND due_date <= ?")
+            params.append(normalize_due_date(due_on_or_before))
+
+        if due_before is not None:
+            clauses.append("due_date IS NOT NULL AND due_date < ?")
+            params.append(normalize_due_date(due_before))
+
+        if has_due is not None:
+            clauses.append("due_date IS NOT NULL" if has_due else "due_date IS NULL")
+
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        rows = self._conn.execute(
+            f"SELECT {_TODO_COLUMNS} FROM todos {where} {self._ORDER_BY}", params
+        ).fetchall()
+        tags_by_todo = self.load_tags([row["id"] for row in rows])
+        return [row_to_todo(row, tags_by_todo.get(row["id"], ())) for row in rows]
+
+    def count_all(self) -> int:
+        return int(self._conn.execute("SELECT count(*) AS c FROM todos").fetchone()["c"])

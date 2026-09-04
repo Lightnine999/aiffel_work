@@ -48,10 +48,16 @@
 
 작은 표에 인덱스를 더 붙이면 쓰기만 느려진다. 이 3개에서 시작한다.
 
-## 뷰 2개 (앱 코드에서 SQL 반복 안 하려고)
+## 뷰 2개 (DB를 손으로 들여다볼 때)
 
 - `v_today_todos` — 마감일이 오늘이거나 지난 미완료 항목
-- `v_todo_list` — 목록 화면용. 태그를 `GROUP_CONCAT`으로 한 줄로 합쳐 N+1 쿼리를 피한다
+- `v_todo_list` — 목록 화면 형태. 태그를 `GROUP_CONCAT`으로 한 줄로 합친 것
+
+**앱 코드는 이 뷰를 쓰지 않는다.** 뷰의 `date('now','localtime')`은 테스트에서
+날짜를 고정할 수 없어서, 앱은 `repository.py`의 파라미터화된 쿼리를 쓴다.
+두 경로가 조용히 갈라지는 것을 막기 위해
+`tests/test_repository_list.py::TestViewConsistency`가 뷰와 리포지토리의
+결과(순서·태그 문자열까지)가 같은지 검사한다.
 
 ## 함정 (CRITICAL)
 
