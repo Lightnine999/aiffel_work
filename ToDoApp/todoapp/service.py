@@ -14,7 +14,8 @@ from typing import Callable, Iterable
 from todoapp.models import Tag, Todo, ValidationError, parse_tag_list
 
 # _Unset은 타입 힌트 전용으로만 가져온다. 런타임 판정은 is_set()을 쓴다.
-from todoapp.repository import UNSET, TagRepository, TodoRepository, _Unset, is_set
+from todoapp.repository import UNSET, _Unset, is_set
+from todoapp.stores import Store
 
 SCOPES = ("all", "active", "done", "today", "overdue", "no-due")
 
@@ -44,13 +45,22 @@ def _system_today() -> str:
 class TodoService:
     def __init__(
         self,
-        conn: sqlite3.Connection,
+        store: "Store | sqlite3.Connection",
         *,
         today: Callable[[], str] = _system_today,
     ) -> None:
-        self._conn = conn
-        self._todos = TodoRepository(conn)
-        self._tags = TagRepository(conn)
+        """저장소를 받는다. sqlite3 커넥션을 주면 SqliteStore로 감싼다.
+
+        커넥션도 받는 이유는 하위 호환이다 — 기존 호출부와 테스트가
+        TodoService(conn) 형태를 쓴다.
+        """
+        if isinstance(store, sqlite3.Connection):
+            from todoapp.stores.sqlite_store import SqliteStore
+
+            store = SqliteStore(store)
+        self._store = store
+        self._todos = store.todos
+        self._tags = store.tags
         self._today = today
 
     # ---- 조회 ----
@@ -117,7 +127,7 @@ class TodoService:
         tags: str | Iterable[str] | None = None,
     ) -> Todo:
         tag_names = parse_tag_list(tags)
-        with self._conn:
+        with self._store.transaction():
             todo_id = self._todos.add(title, notes=notes, due_date=due, priority=priority)
             if tag_names:
                 self._todos.replace_tags(todo_id, self._resolve_tag_ids(tag_names))
@@ -136,7 +146,7 @@ class TodoService:
         self.get(todo_id)  # 없는 id면 여기서 TodoNotFound를 던진다
         # tags를 아예 안 준 경우(UNSET)와 빈 값을 준 경우('' → 전부 제거)를 갈라야 한다
         tag_names = parse_tag_list(tags) if is_set(tags) else None
-        with self._conn:
+        with self._store.transaction():
             self._todos.update(
                 todo_id, title=title, notes=notes, due_date=due, priority=priority
             )
@@ -154,14 +164,14 @@ class TodoService:
         return self._set_done(todo_id, not self.get(todo_id).is_done)
 
     def delete(self, todo_id: int) -> None:
-        with self._conn:
+        with self._store.transaction():
             if not self._todos.delete(todo_id):
                 raise TodoNotFound(todo_id)
 
     # ---- 내부 ----
 
     def _set_done(self, todo_id: int, done: bool) -> Todo:
-        with self._conn:
+        with self._store.transaction():
             if not self._todos.set_done(todo_id, done):
                 raise TodoNotFound(todo_id)
         return self.get(todo_id)

@@ -36,3 +36,18 @@ def get_secret_key() -> str:
             '  생성: python3 -c "import secrets; print(secrets.token_hex(32))"'
         )
     return key
+
+
+VALID_BACKENDS = ("sqlite", "supabase")
+
+
+def get_storage_backend() -> str:
+    """어느 저장소를 쓸지. .env의 STORAGE. 없으면 sqlite(로컬)."""
+    load_dotenv(PROJECT_ROOT / ".env")
+    name = os.getenv("STORAGE", "sqlite").strip().lower() or "sqlite"
+    if name not in VALID_BACKENDS:
+        raise RuntimeError(
+            f"STORAGE 값이 잘못되었습니다: {name!r} "
+            f"(가능: {', '.join(VALID_BACKENDS)})"
+        )
+    return name
