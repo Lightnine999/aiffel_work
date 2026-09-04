@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% macro filter_fields() %}
+  <input type="hidden" name="scope" value="{{ scope }}">
+  <input type="hidden" name="tag" value="{{ active_tag }}">
+  <input type="hidden" name="q" value="{{ query }}">
+{% endmacro %}
+
+{% block content %}
+<h1>할 일</h1>
+<p class="sub">
+  전체 {{ summary.total }} · 미완료 {{ summary.active }} ·
+  오늘까지 {{ summary.today }} · 기한 지남 {{ summary.overdue }}
+</p>
+
+<div class="card">
+  <form method="post" action="{{ url_for('.create') }}">
+    {{ filter_fields() }}
+    <div class="grid">
+      <div>
+        <label for="title">할 일</label>
+        <input id="title" name="title" placeholder="무엇을 할까요?" required style="width:100%">
+      </div>
+      <div>
+        <label for="due_date">마감일</label>
+        <input id="due_date" name="due_date" type="date" style="width:100%">
+      </div>
+    </div>
+    <div class="grid-3">
+      <div>
+        <label for="tags">태그 (쉼표로 구분)</label>
+        <input id="tags" name="tags" placeholder="공부, 집안일" style="width:100%">
+      </div>
+      <div>
+        <label for="notes">메모</label>
+        <input id="notes" name="notes" style="width:100%">
+      </div>
+      <div>
+        <label for="priority">우선순위</label>
+        <select id="priority" name="priority" style="width:100%">
+          {% for value, label in priority_labels.items() %}
+            <option value="{{ value }}" {% if value == 2 %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <p style="margin:12px 0 0"><button class="primary" type="submit">추가</button></p>
+  </form>
+</div>
+
+<div class="card">
+  <div class="tabs">
+    {% for name in scopes %}
+      <a class="tab {% if name == scope %}on{% endif %}"
+         href="{{ url_for('.index', scope=name, tag=active_tag or None, q=query or None) }}">
+        {{ scope_labels[name] }}
+      </a>
+    {% endfor %}
+  </div>
+
+  <form method="get" action="{{ url_for('.index') }}" class="tabs">
+    <input type="hidden" name="scope" value="{{ scope }}">
+    <input name="q" value="{{ query }}" placeholder="제목·메모 검색">
+    <select name="tag">
+      <option value="">태그 전체</option>
+      {% for tag in all_tags %}
+        <option value="{{ tag.name }}" {% if tag.name == active_tag %}selected{% endif %}>{{ tag.name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">찾기</button>
+    {% if active_tag or query %}
+      <a class="tab" href="{{ url_for('.index', scope=scope) }}">초기화</a>
+    {% endif %}
+  </form>
+
+  {% if todos %}
+    <ul class="todos">
+      {% for todo in todos %}
+        <li class="{% if todo.is_done %}done{% endif %}">
+          <form method="post" action="{{ url_for('.toggle', todo_id=todo.id) }}">
+            {{ filter_fields() }}
+            <button class="link" type="submit" title="완료 표시 전환">
+              {% if todo.is_done %}[x]{% else %}[ ]{% endif %}
+            </button>
+          </form>
+          <div class="body">
+            <div class="title">{{ todo.title }}</div>
+            <div class="meta">
+              {% if todo.due_date %}
+                <span class="{% if not todo.is_done and todo.due_date <= today %}overdue{% endif %}">마감 {{ todo.due_date }}</span>
+              {% else %}마감일 없음{% endif %}
+              · {{ priority_labels[todo.priority] }}
+              {% if todo.notes %}· {{ todo.notes }}{% endif %}
+              {% if todo.tags %}
+                <br>{% for tag in todo.tags %}<span class="chip">{{ tag.name }}</span>{% endfor %}
+              {% endif %}
+            </div>
+          </div>
+          <form method="post" action="{{ url_for('.delete', todo_id=todo.id) }}"
+                onsubmit="return confirm('삭제할까요?')">
+            {{ filter_fields() }}
+            <button class="link danger" type="submit">삭제</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">할 일이 없습니다.</p>
+  {% endif %}
+</div>
+
+<footer>로컬 전용 · 로그인 없음 · 데이터는 이 컴퓨터의 SQLite 파일에만 저장됩니다</footer>
+{% endblock %}
