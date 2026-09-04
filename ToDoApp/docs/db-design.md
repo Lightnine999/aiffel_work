@@ -85,3 +85,20 @@ conn.execute("PRAGMA foreign_keys = ON")   # 연결마다 필수
 ```bash
 sqlite3 db/todo.db < db/schema.sql
 ```
+
+## 코드에서 이 표를 다루는 계층
+
+```
+models.py      값 객체 + 검증        DB를 모른다
+database.py    커넥션·PRAGMA·스키마
+repository.py  SQL 전담              ← SQL은 여기와 db/schema.sql에만 존재
+service.py     유스케이스·트랜잭션    CLI와 웹이 공유
+cli.py / web/  화면                  SQL도 sqlite3도 모른다
+```
+
+`repository.py`의 `TodoRepository.load_tags()`가 목록 조회의 N+1을 막는다.
+할 일 10개의 태그를 쿼리 11번이 아니라 2번(할 일 1 + 태그 1)에 가져온다.
+
+계층 경계는 테스트로 고정했다 —
+`tests/test_web.py::TestLayerBoundary`가 `cli.py`와 `web/`에 `SELECT`나
+`import sqlite3`가 없는지 검사한다.

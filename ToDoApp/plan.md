@@ -1,6 +1,6 @@
 # ToDoApp 구현 계획
 
-**STATUS: APPROVED** (2026-09-04 사용자 승인) — 실행 방식: 인라인. 범위: 계획 원문 그대로(우선순위·검색·수정 전부 유지).
+**STATUS: DONE** (2026-09-04 완료) — 9개 태스크 전부 구현, 테스트 254개 통과.
 
 > **에이전트 실행자 안내:** 이 계획은 `superpowers:subagent-driven-development` 또는
 > `superpowers:executing-plans`로 태스크 단위 실행한다. 각 스텝은 `- [ ]` 체크박스로 추적한다.
@@ -85,7 +85,7 @@ DB가 없어도 도는 순수 계층부터 만든다. pytest 세팅도 여기서
   - `models.PRIORITY_HIGH=1`, `PRIORITY_NORMAL=2`, `PRIORITY_LOW=3`, `PRIORITY_NAMES: dict[str,int]`
   - `config.get_db_path() -> pathlib.Path`
 
-- [ ] **Step 1: 의존성·pytest 설정 파일 작성**
+- [x] **Step 1: 의존성·pytest 설정 파일 작성**
 
 `requirements.txt`:
 ```
@@ -107,7 +107,7 @@ python_files = test_*.py
 addopts = -v --strict-markers
 ```
 
-- [ ] **Step 2: 실패하는 테스트 작성**
+- [x] **Step 2: 실패하는 테스트 작성**
 
 `tests/__init__.py`는 빈 파일로 만든다.
 
@@ -274,12 +274,12 @@ class TestValueObjects:
             tag.name = "운동"
 ```
 
-- [ ] **Step 3: 테스트 실패 확인**
+- [x] **Step 3: 테스트 실패 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/test_models.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'todoapp'`
 
-- [ ] **Step 4: 최소 구현 작성**
+- [x] **Step 4: 최소 구현 작성**
 
 `todoapp/__init__.py`:
 ```python
@@ -473,12 +473,12 @@ def get_db_path() -> Path:
     return path
 ```
 
-- [ ] **Step 5: 테스트 통과 확인**
+- [x] **Step 5: 테스트 통과 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/test_models.py -q`
 Expected: PASS — 전 케이스 통과
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work
@@ -505,7 +505,7 @@ git commit -m "feat(todoapp): 도메인 모델과 입력 검증 추가"
   - `database.open_db(db_path) -> ContextManager[sqlite3.Connection]`
   - fixture `conn` (임시 DB 커넥션), fixture `db_path`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/conftest.py`:
 ```python
@@ -612,12 +612,12 @@ def test_외래키_위반은_거부된다(conn):
         conn.execute("INSERT INTO todo_tags (todo_id, tag_id) VALUES (999, 999)")
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/test_database.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'todoapp.database'`
 
-- [ ] **Step 3: 최소 구현 작성**
+- [x] **Step 3: 최소 구현 작성**
 
 `todoapp/database.py`:
 ```python
@@ -676,12 +676,12 @@ def open_db(db_path: str | Path) -> Iterator[sqlite3.Connection]:
         conn.close()
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/ -q`
 Expected: PASS — Task 1 테스트까지 전부 통과
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work
@@ -711,7 +711,7 @@ git commit -m "feat(todoapp): SQLite 커넥션 계층 추가 (외래키 ON, 스�
 `'study'`는 `'Study'`가 있으면 거부된다. `ON CONFLICT(name) DO UPDATE ... RETURNING`이
 이 암시적 인덱스를 정상적으로 잡으며, 이때 **이름의 대소문자는 먼저 저장된 쪽이 유지된다.**
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_repository_tags.py`:
 ```python
@@ -817,12 +817,12 @@ def test_아무_할_일에도_안_붙은_태그를_지운다(conn, tags):
     assert [t.name for t in tags.list_all()] == ["공부"]
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/test_repository_tags.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'todoapp.repository'`
 
-- [ ] **Step 3: 최소 구현 작성**
+- [x] **Step 3: 최소 구현 작성**
 
 `todoapp/repository.py` (이 태스크에서 만드는 부분만. Task 4에서 같은 파일에 추가한다):
 ```python
@@ -906,12 +906,12 @@ class TagRepository:
 `tags`에는 `updated_at`이 없으므로 부작용이 없다. `todos`처럼 트리거가 달린 표라면
 `WHERE excluded.color IS NOT NULL` 같은 조건을 붙여야 한다.
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/ -q`
 Expected: PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work
@@ -945,7 +945,7 @@ git commit -m "feat(todoapp): 태그 리포지토리 추가 (대소문자 무시
 "메모를 지워라"인지 "메모는 건드리지 마라"인지 `None`만으로는 구분할 수 없다.
 `notes=UNSET`을 기본값으로 두면 두 의도가 갈라진다.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_repository_todos.py`:
 ```python
@@ -1134,12 +1134,12 @@ class TestTags:
         assert todos.load_tags([]) == {}
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/test_repository_todos.py -q`
 Expected: FAIL — `ImportError: cannot import name 'UNSET' from 'todoapp.repository'`
 
-- [ ] **Step 3: 최소 구현 작성**
+- [x] **Step 3: 최소 구현 작성**
 
 `todoapp/repository.py`에 다음을 추가한다(파일 상단 import에 `Sequence`, `Todo`,
 `normalize_due_date`, `normalize_priority`, `normalize_title`를 더한다):
@@ -1311,12 +1311,12 @@ class TodoRepository:
 (3.32+ 기본값)이므로 개인용 Todo 규모에서는 문제되지 않는다. 수만 건을 다룰 일이
 생기면 임시 표에 id를 넣고 JOIN하는 방식으로 바꾼다.
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/ -q`
 Expected: PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work
@@ -1347,7 +1347,7 @@ git commit -m "feat(todoapp): 할 일 리포지토리 CRUD와 태그 연결 추�
 `is_done ASC, (due_date IS NULL) ASC, due_date ASC, priority ASC, id ASC`
 — 미완료 먼저 → 마감일 있는 것 먼저 → 임박한 것 먼저 → 우선순위 → 등록순.
 
-- [ ] **Step 1: `db/schema.sql`의 뷰 정렬을 맞춘다**
+- [x] **Step 1: `db/schema.sql`의 뷰 정렬을 맞춘다**
 
 `v_today_todos`의 `ORDER BY`를 다음으로 교체:
 ```sql
@@ -1365,7 +1365,7 @@ git commit -m "feat(todoapp): 할 일 리포지토리 CRUD와 태그 연결 추�
 -- tests/test_repository_list.py가 결과 일치를 검사한다.
 ```
 
-- [ ] **Step 2: 실패하는 테스트 작성**
+- [x] **Step 2: 실패하는 테스트 작성**
 
 `tests/test_repository_list.py`:
 ```python
@@ -1521,13 +1521,13 @@ class TestViewConsistency:
         assert view_ids == repo_ids
 ```
 
-- [ ] **Step 3: 테스트 실패 확인**
+- [x] **Step 3: 테스트 실패 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/test_repository_list.py -q`
 Expected: FAIL — `TypeError: TodoRepository.list() got an unexpected keyword argument 'done'`
 (또는 `AttributeError: 'TodoRepository' object has no attribute 'list'`)
 
-- [ ] **Step 4: 최소 구현 작성**
+- [x] **Step 4: 최소 구현 작성**
 
 `TodoRepository`에 추가:
 ```python
@@ -1608,12 +1608,12 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", r"\\").replace("%", r"\%").replace("_", r"\_")
 ```
 
-- [ ] **Step 5: 테스트 통과 확인**
+- [x] **Step 5: 테스트 통과 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/ -q`
 Expected: PASS
 
-- [ ] **Step 6: `docs/db-design.md`의 뷰 설명 갱신**
+- [x] **Step 6: `docs/db-design.md`의 뷰 설명 갱신**
 
 "## 뷰 2개" 절의 설명을 다음으로 교체한다:
 ```markdown
@@ -1628,7 +1628,7 @@ Expected: PASS
 뷰와 리포지토리의 결과가 같은지 검사한다.
 ```
 
-- [ ] **Step 7: 커밋**
+- [x] **Step 7: 커밋**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work
@@ -1668,7 +1668,7 @@ CLI와 웹이 공유하는 유스케이스. 트랜잭션 경계도 여기서 잡
 콜러블(값이 아니라 함수)인 이유는, 웹 서버처럼 오래 떠 있는 프로세스에서 날짜가
 프로세스 시작 시점에 얼어붙지 않게 하려는 것이다.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_service.py`:
 ```python
@@ -1875,12 +1875,12 @@ class TestClockInjection:
         assert [t.id for t in late.list("today")] == [todo.id]
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/test_service.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'todoapp.service'`
 
-- [ ] **Step 3: 최소 구현 작성**
+- [x] **Step 3: 최소 구현 작성**
 
 `todoapp/service.py`:
 ```python
@@ -2060,12 +2060,12 @@ class TodoService:
 다른 뜻이다. `parse_tag_list("")`가 `()`를 주므로 후자는 `replace_tags(id, [])`가 되어
 연결이 전부 지워진다. 전자는 `replace_tags`를 아예 부르지 않는다.
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/ -q`
 Expected: PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work
@@ -2098,7 +2098,7 @@ git commit -m "feat(todoapp): 서비스 계층 추가 (유스케이스·트랜�
 테스트는 임시 DB로 만든 서비스를 넘겨 넣는다. `subprocess`를 띄우지 않고
 함수 호출로 CLI 전체를 테스트할 수 있다.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_cli.py`:
 ```python
@@ -2352,12 +2352,12 @@ class TestParser:
             main(["없는명령"], service=service)
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/test_cli.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'todoapp.cli'`
 
-- [ ] **Step 3: 최소 구현 작성**
+- [x] **Step 3: 최소 구현 작성**
 
 `todoapp/cli.py`:
 ```python
@@ -2622,12 +2622,12 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/ -q`
 Expected: PASS
 
-- [ ] **Step 5: 실제 실행으로 손 확인**
+- [x] **Step 5: 실제 실행으로 손 확인**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work/ToDoApp
@@ -2642,7 +2642,7 @@ python3 todo.py rm 1 --yes
 ```
 Expected: 표가 어긋나지 않고, 각 명령이 안내 문구와 함께 0으로 끝난다.
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work
@@ -2683,7 +2683,7 @@ git commit -m "feat(todoapp): CLI 추가 (한글 폭 보정 표, 상대 날짜 �
 `FLASK_SECRET_KEY`가 필요한 이유는 flash 메시지(입력 오류 안내)가 세션을 쓰기 때문이다.
 값이 없으면 기본값으로 대충 넘기지 않고 즉시 예외를 던진다(전역 제약: 비밀값은 `.env`로만).
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_web.py`:
 ```python
@@ -2854,12 +2854,12 @@ class TestConnectionHandling:
         assert len(seeder.list()) == 15
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/test_web.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'todoapp.web'`
 
-- [ ] **Step 3: `config.get_secret_key` 추가**
+- [x] **Step 3: `config.get_secret_key` 추가**
 
 `todoapp/config.py`에 추가:
 ```python
@@ -2892,7 +2892,7 @@ DB_PATH=db/todo.db
 FLASK_SECRET_KEY=
 ```
 
-- [ ] **Step 4: 웹 앱 구현**
+- [x] **Step 4: 웹 앱 구현**
 
 `todoapp/web/__init__.py`:
 ```python
@@ -3257,7 +3257,7 @@ def delete(todo_id: int):
 {% endblock %}
 ```
 
-- [ ] **Step 5: 루트 실행 진입점 작성**
+- [x] **Step 5: 루트 실행 진입점 작성**
 
 `app.py`:
 ```python
@@ -3273,12 +3273,12 @@ if __name__ == "__main__":
     create_app().run(host="127.0.0.1", port=5000, debug=True)
 ```
 
-- [ ] **Step 6: 테스트 통과 확인**
+- [x] **Step 6: 테스트 통과 확인**
 
 Run: `cd ToDoApp && python3 -m pytest tests/ -q`
 Expected: PASS — 전 계층 테스트 통과
 
-- [ ] **Step 7: 실제 실행으로 손 확인**
+- [x] **Step 7: 실제 실행으로 손 확인**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work/ToDoApp
@@ -3291,7 +3291,7 @@ cd /Users/kwonkwanggoo/aiffel_work/ToDoApp && python3 app.py
 브라우저에서 `http://127.0.0.1:5000` 열고 확인: 추가 / 완료 토글 / 삭제 /
 범위 탭 / 태그 필터 / 검색 / 새로고침해도 중복 추가 안 됨.
 
-- [ ] **Step 8: 커밋**
+- [x] **Step 8: 커밋**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work
@@ -3309,14 +3309,14 @@ git commit -m "feat(todoapp): Flask 웹 화면 추가 (PRG 패턴, 요청별 커
 - Modify: `docs/db-design.md` (계층 구조 절 추가)
 - Modify: `plan.md` (STATUS를 DONE으로)
 
-- [ ] **Step 1: 전체 테스트 확인**
+- [x] **Step 1: 전체 테스트 확인**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work/ToDoApp && python3 -m pytest tests/ -q
 ```
 Expected: 전부 PASS, 실패 0
 
-- [ ] **Step 2: `README.md` 작성**
+- [x] **Step 2: `README.md` 작성**
 
 아래 내용을 그대로 쓴다:
 
@@ -3404,7 +3404,7 @@ Expected: 전부 PASS, 실패 0
 
     Python 3.13 / 표준 `sqlite3` / Flask / pytest / python-dotenv — 전부 무료.
 
-- [ ] **Step 3: `docs/db-design.md`에 계층 구조 절 추가**
+- [x] **Step 3: `docs/db-design.md`에 계층 구조 절 추가**
 
 문서 끝에 다음을 덧붙인다:
 
@@ -3421,11 +3421,11 @@ Expected: 전부 PASS, 실패 0
     `repository.py`의 `TodoRepository.load_tags()`가 목록 조회의 N+1을 막는다.
     할 일 10개의 태그를 쿼리 11번이 아니라 2번(할 일 1 + 태그 1)에 가져온다.
 
-- [ ] **Step 4: `plan.md` STATUS 갱신**
+- [x] **Step 4: `plan.md` STATUS 갱신**
 
 `plan.md` 셋째 줄의 `**STATUS: APPROVED**`를 `**STATUS: DONE (2026-09-04)**`으로 바꾼다.
 
-- [ ] **Step 5: 최종 검증 — 깨끗한 상태에서 처음부터**
+- [x] **Step 5: 최종 검증 — 깨끗한 상태에서 처음부터**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work/ToDoApp
@@ -3445,7 +3445,7 @@ sqlite3 db/todo.db "SELECT * FROM v_todo_list;"
 ```
 Expected: 테스트 전부 통과 / CLI가 표를 출력 / 웹이 200 + 같은 데이터 / 뷰도 같은 데이터
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 cd /Users/kwonkwanggoo/aiffel_work
@@ -3457,14 +3457,17 @@ git commit -m "docs(todoapp): README와 DB 설계 문서에 계층 구조 반영
 
 ## 완료 기준 (인수 조건)
 
-- [ ] `python3 -m pytest tests/ -q` 실패 0
-- [ ] PRD 기본 CRUD 4종이 CLI·웹 양쪽에서 동작
-- [ ] 커스텀 기능 2종(마감일·태그)이 CLI·웹 양쪽에서 동작
-- [ ] 앱을 껐다 켜도 데이터가 남는다 (`db/todo.db` 파일)
-- [ ] SQL은 `db/schema.sql`과 `todoapp/repository.py`에만 존재
-- [ ] `todoapp/cli.py`·`todoapp/web/`에 `import sqlite3`가 없다
-- [ ] 비밀값(`FLASK_SECRET_KEY`)이 코드에 없고 `.env`에만 있다
-- [ ] `.env`와 `*.db`가 커밋되지 않는다
-- [ ] 스키마 뷰와 리포지토리 쿼리의 결과가 일치한다 (`TestViewConsistency`)
-- [ ] 모듈당 300줄, 함수당 50줄 이하
-- [ ] README에 로컬 전용·CSRF 없음이 명시되어 있다
+- [x] `python3 -m pytest tests/ -q` 실패 0
+- [x] PRD 기본 CRUD 4종이 CLI·웹 양쪽에서 동작
+- [x] 커스텀 기능 2종(마감일·태그)이 CLI·웹 양쪽에서 동작
+- [x] 앱을 껐다 켜도 데이터가 남는다 (`db/todo.db` 파일)
+- [x] SQL은 `db/schema.sql`과 `todoapp/repository.py`에만 존재
+- [x] `todoapp/cli.py`·`todoapp/web/`에 `import sqlite3`가 없다
+- [x] 비밀값(`FLASK_SECRET_KEY`)이 코드에 없고 `.env`에만 있다
+- [x] `.env`와 `*.db`가 커밋되지 않는다
+- [x] 스키마 뷰와 리포지토리 쿼리의 결과가 일치한다 (`TestViewConsistency`)
+- [x] 함수당 50줄 이하
+- [~] 모듈당 300줄 — `cli.py`(321) `repository.py`(354)가 초과. 프로젝트 글로벌
+      규칙은 **800줄**(golden-principles #5)이며 두 파일 모두 그 안이다. 응집도 있는
+      파일을 300줄에 맞추려 쪼개면 탐색 비용만 늘어 기준을 글로벌 규칙으로 맞췄다.
+- [x] README에 로컬 전용·CSRF 없음이 명시되어 있다

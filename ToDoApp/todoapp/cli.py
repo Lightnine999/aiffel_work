@@ -25,6 +25,9 @@ _TOMORROW_WORDS = {"tomorrow", "내일"}
 _CLEAR_WORDS = {"", "none", "없음", "null"}
 
 
+# ---------------------------------------------------------------- 입력 해석
+
+
 def resolve_due_input(raw: str | None, today: str) -> str | None:
     """사람이 쓰는 표현을 'YYYY-MM-DD'로 바꾼다.
 
@@ -46,6 +49,9 @@ def resolve_due_input(raw: str | None, today: str) -> str | None:
         sign = 1 if match.group(1) == "+" else -1
         return (base + timedelta(days=sign * int(match.group(2)))).isoformat()
     return normalize_due_date(value)  # ISO가 아니면 여기서 ValidationError
+
+
+# ---------------------------------------------------------------- 출력 서식
 
 
 def display_width(text: str) -> int:
@@ -88,13 +94,12 @@ def format_table(todos: Sequence[Todo]) -> str:
 
 
 def format_detail(todo: Todo) -> str:
-    tag_text = ", ".join(t.name for t in todo.tags) or "-"
     lines = [
         f"[{todo.id}] {todo.title}",
         f"  상태     : {'완료' if todo.is_done else '미완료'}",
         f"  마감일   : {todo.due_date or '-'}",
         f"  우선순위 : {PRIORITY_LABELS[todo.priority]}",
-        f"  태그     : {tag_text}",
+        f"  태그     : {', '.join(t.name for t in todo.tags) or '-'}",
         f"  메모     : {todo.notes or '-'}",
         f"  생성     : {todo.created_at}",
         f"  수정     : {todo.updated_at}",
@@ -104,38 +109,47 @@ def format_detail(todo: Todo) -> str:
     return "\n".join(lines)
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="todo", description="로컬 SQLite에 저장하는 할 일 관리 도구"
+def format_summary(counts: dict[str, int]) -> str:
+    return (
+        f"전체 {counts['total']} · 미완료 {counts['active']} · "
+        f"오늘까지 {counts['today']} · 기한 지남 {counts['overdue']}"
     )
-    sub = parser.add_subparsers(dest="command")
 
-    p_add = sub.add_parser("add", help="할 일 추가")
-    p_add.add_argument("title", help="할 일 제목")
+
+# ---------------------------------------------------------------- 파서
+
+_DUE_HELP = "마감일 (2026-09-10 / 오늘 / 내일 / +7d / 지난날은 --due=-2d)"
+
+
+def _register_add(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser("add", help="할 일 추가")
+    p.add_argument("title", help="할 일 제목")
     # 지난 날짜(-2d)는 argparse가 옵션으로 오인하므로 --due=-2d 형태로 붙여 써야 한다.
-    p_add.add_argument(
-        "--due", help="마감일 (2026-09-10 / 오늘 / 내일 / +7d / 지난날은 --due=-2d)"
-    )
-    p_add.add_argument("--tag", help="태그, 쉼표로 구분 (예: 공부,집안일)")
-    p_add.add_argument("--priority", help="우선순위 (high/normal/low 또는 1/2/3)")
-    p_add.add_argument("--notes", help="메모")
+    p.add_argument("--due", help=_DUE_HELP)
+    p.add_argument("--tag", help="태그, 쉼표로 구분 (예: 공부,집안일)")
+    p.add_argument("--priority", help="우선순위 (high/normal/low 또는 1/2/3)")
+    p.add_argument("--notes", help="메모")
 
-    p_list = sub.add_parser("list", help="목록 보기")
-    p_list.add_argument("--scope", choices=SCOPES, default="all", help="범위")
-    group = p_list.add_mutually_exclusive_group()
-    group.add_argument("--all", dest="scope", action="store_const", const="all",
-                       help="전체 (기본)")
-    group.add_argument("--active", dest="scope", action="store_const", const="active",
-                       help="미완료만")
-    group.add_argument("--done", dest="scope", action="store_const", const="done",
-                       help="완료만")
-    group.add_argument("--today", dest="scope", action="store_const", const="today",
-                       help="오늘까지 마감인 미완료")
-    group.add_argument("--overdue", dest="scope", action="store_const", const="overdue",
-                       help="기한이 지난 미완료")
-    p_list.add_argument("--tag", help="이 태그가 붙은 것만")
-    p_list.add_argument("--search", help="제목·메모에서 찾기")
 
+def _register_list(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser("list", help="목록 보기")
+    p.add_argument("--scope", choices=SCOPES, default="all", help="범위")
+    shortcuts = p.add_mutually_exclusive_group()
+    for flag, scope, help_text in (
+        ("--all", "all", "전체 (기본)"),
+        ("--active", "active", "미완료만"),
+        ("--done", "done", "완료만"),
+        ("--today", "today", "오늘까지 마감인 미완료"),
+        ("--overdue", "overdue", "기한이 지난 미완료"),
+    ):
+        shortcuts.add_argument(
+            flag, dest="scope", action="store_const", const=scope, help=help_text
+        )
+    p.add_argument("--tag", help="이 태그가 붙은 것만")
+    p.add_argument("--search", help="제목·메모에서 찾기")
+
+
+def _register_id_only(sub: argparse._SubParsersAction) -> None:
     for name, help_text in (
         ("done", "완료로 표시"),
         ("undone", "완료 되돌리기"),
@@ -144,34 +158,151 @@ def build_parser() -> argparse.ArgumentParser:
         p = sub.add_parser(name, help=help_text)
         p.add_argument("id", type=int, help="할 일 번호")
 
-    p_rm = sub.add_parser("rm", help="삭제")
-    p_rm.add_argument("id", type=int, help="할 일 번호")
-    p_rm.add_argument("-y", "--yes", action="store_true", help="확인 없이 삭제")
 
-    p_edit = sub.add_parser("edit", help="내용 수정")
-    p_edit.add_argument("id", type=int, help="할 일 번호")
-    p_edit.add_argument("--title")
-    p_edit.add_argument(
-        "--due", help="마감일 ('없음'을 주면 비운다. 지난날은 --due=-2d)"
+def _register_rm(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser("rm", help="삭제")
+    p.add_argument("id", type=int, help="할 일 번호")
+    p.add_argument("-y", "--yes", action="store_true", help="확인 없이 삭제")
+
+
+def _register_edit(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser("edit", help="내용 수정")
+    p.add_argument("id", type=int, help="할 일 번호")
+    p.add_argument("--title")
+    p.add_argument("--due", help=f"{_DUE_HELP}. '없음'을 주면 비운다")
+    p.add_argument("--tag", help="태그 전체를 이것으로 교체 (빈 문자열이면 전부 제거)")
+    p.add_argument("--priority")
+    p.add_argument("--notes")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="todo", description="로컬 SQLite에 저장하는 할 일 관리 도구"
     )
-    p_edit.add_argument("--tag", help="태그 전체를 이것으로 교체 (빈 문자열이면 전부 제거)")
-    p_edit.add_argument("--priority")
-    p_edit.add_argument("--notes")
-
+    sub = parser.add_subparsers(dest="command")
+    _register_add(sub)
+    _register_list(sub)
+    _register_id_only(sub)
+    _register_rm(sub)
+    _register_edit(sub)
     sub.add_parser("tags", help="태그 목록")
     return parser
 
 
+# ---------------------------------------------------------------- 명령 처리
+
+Confirm = Callable[[str], bool]
+
+
+def _cmd_add(args: argparse.Namespace, service: TodoService, confirm: Confirm) -> int:
+    todo = service.add(
+        args.title,
+        notes=args.notes,
+        due=resolve_due_input(args.due, service.today()),
+        priority=args.priority,
+        tags=args.tag,
+    )
+    print(f"추가했습니다. [{todo.id}] {todo.title}")
+    return 0
+
+
+def _cmd_list(args: argparse.Namespace, service: TodoService, confirm: Confirm) -> int:
+    print(format_table(service.list(args.scope, tag=args.tag, keyword=args.search)))
+    print(f"\n{format_summary(service.summary())}")
+    return 0
+
+
+def _cmd_done(args: argparse.Namespace, service: TodoService, confirm: Confirm) -> int:
+    print(f"완료로 표시했습니다. [{args.id}] {service.complete(args.id).title}")
+    return 0
+
+
+def _cmd_undone(args: argparse.Namespace, service: TodoService, confirm: Confirm) -> int:
+    print(f"미완료로 되돌렸습니다. [{args.id}] {service.reopen(args.id).title}")
+    return 0
+
+
+def _cmd_show(args: argparse.Namespace, service: TodoService, confirm: Confirm) -> int:
+    print(format_detail(service.get(args.id)))
+    return 0
+
+
+def _cmd_rm(args: argparse.Namespace, service: TodoService, confirm: Confirm) -> int:
+    todo = service.get(args.id)  # 없으면 확인을 묻기 전에 예외
+    if not args.yes and not confirm(f"[{todo.id}] {todo.title} 을(를) 삭제할까요?"):
+        print("취소했습니다.")
+        return 0
+    service.delete(args.id)
+    print(f"삭제했습니다. [{todo.id}] {todo.title}")
+    return 0
+
+
+def _cmd_edit(args: argparse.Namespace, service: TodoService, confirm: Confirm) -> int:
+    # 옵션을 주지 않으면 None이다. 그 필드는 service에 넘기지 않아 UNSET으로 남는다.
+    fields: dict[str, object] = {}
+    if args.title is not None:
+        fields["title"] = args.title
+    if args.notes is not None:
+        fields["notes"] = args.notes or None
+    if args.due is not None:
+        fields["due"] = resolve_due_input(args.due, service.today())
+    if args.priority is not None:
+        fields["priority"] = args.priority
+    if args.tag is not None:
+        fields["tags"] = args.tag
+    todo = service.edit(args.id, **fields)  # type: ignore[arg-type]
+    print(f"수정했습니다. [{todo.id}] {todo.title}")
+    return 0
+
+
+def _cmd_tags(args: argparse.Namespace, service: TodoService, confirm: Confirm) -> int:
+    tags = service.all_tags()
+    if not tags:
+        print("등록된 태그가 없습니다.")
+        return 0
+    # 한글 태그명은 두 칸을 차지하므로 표시 폭으로 맞춘다
+    width = max(display_width(t.name) for t in tags)
+    for tag in tags:
+        print(f"  {_pad(tag.name, width)}  ({tag.color})")
+    return 0
+
+
+_COMMANDS: dict[str, Callable[[argparse.Namespace, TodoService, Confirm], int]] = {
+    "add": _cmd_add,
+    "list": _cmd_list,
+    "done": _cmd_done,
+    "undone": _cmd_undone,
+    "show": _cmd_show,
+    "rm": _cmd_rm,
+    "edit": _cmd_edit,
+    "tags": _cmd_tags,
+}
+
+
+# ---------------------------------------------------------------- 진입점
+
+
 def _default_confirm(question: str) -> bool:
-    answer = input(f"{question} [y/N] ").strip().lower()
-    return answer in ("y", "yes")
+    return input(f"{question} [y/N] ").strip().lower() in ("y", "yes")
+
+
+def _dispatch(args: argparse.Namespace, service: TodoService, confirm: Confirm) -> int:
+    """명령을 실행하고 종료 코드를 돌려준다. 사용자 오류는 stderr + 1."""
+    try:
+        return _COMMANDS[args.command](args, service, confirm)
+    except ValidationError as exc:
+        print(f"입력 오류: {exc}", file=sys.stderr)
+        return 1
+    except TodoNotFound as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
 
 def main(
     argv: Sequence[str] | None = None,
     *,
     service: TodoService | None = None,
-    confirm: Callable[[str], bool] | None = None,
+    confirm: Confirm | None = None,
 ) -> int:
     """CLI 진입점. 종료 코드를 돌려준다 (0 성공 / 1 사용자 오류 / 2 사용법 오류)."""
     parser = build_parser()
@@ -184,83 +315,6 @@ def main(
         return _dispatch(args, service, confirm or _default_confirm)
     with open_db(get_db_path()) as conn:
         return _dispatch(args, TodoService(conn), confirm or _default_confirm)
-
-
-def _dispatch(
-    args: argparse.Namespace, service: TodoService, confirm: Callable[[str], bool]
-) -> int:
-    # 서비스의 시계를 쓴다. date.today()를 직접 부르면 주입한 고정 시계가 무시되어
-    # '--due 오늘' 테스트가 실행 날짜에 따라 통과·실패를 오간다.
-    today = service.today()
-    try:
-        if args.command == "add":
-            todo = service.add(
-                args.title,
-                notes=args.notes,
-                due=resolve_due_input(args.due, today),
-                priority=args.priority,
-                tags=args.tag,
-            )
-            print(f"추가했습니다. [{todo.id}] {todo.title}")
-
-        elif args.command == "list":
-            todos = service.list(args.scope, tag=args.tag, keyword=args.search)
-            print(format_table(todos))
-            s = service.summary()
-            print(
-                f"\n전체 {s['total']} · 미완료 {s['active']} · "
-                f"오늘까지 {s['today']} · 기한 지남 {s['overdue']}"
-            )
-
-        elif args.command == "done":
-            print(f"완료로 표시했습니다. [{args.id}] {service.complete(args.id).title}")
-
-        elif args.command == "undone":
-            print(f"미완료로 되돌렸습니다. [{args.id}] {service.reopen(args.id).title}")
-
-        elif args.command == "show":
-            print(format_detail(service.get(args.id)))
-
-        elif args.command == "rm":
-            todo = service.get(args.id)  # 없으면 확인을 묻기 전에 예외
-            if not args.yes and not confirm(f"[{todo.id}] {todo.title} 을(를) 삭제할까요?"):
-                print("취소했습니다.")
-                return 0
-            service.delete(args.id)
-            print(f"삭제했습니다. [{todo.id}] {todo.title}")
-
-        elif args.command == "edit":
-            fields: dict[str, object] = {}
-            if args.title is not None:
-                fields["title"] = args.title
-            if args.notes is not None:
-                fields["notes"] = args.notes or None
-            if args.due is not None:
-                fields["due"] = resolve_due_input(args.due, today)
-            if args.priority is not None:
-                fields["priority"] = args.priority
-            if args.tag is not None:
-                fields["tags"] = args.tag
-            todo = service.edit(args.id, **fields)  # type: ignore[arg-type]
-            print(f"수정했습니다. [{todo.id}] {todo.title}")
-
-        elif args.command == "tags":
-            tags = service.all_tags()
-            if not tags:
-                print("등록된 태그가 없습니다.")
-            else:
-                # 한글 태그명은 두 칸을 차지하므로 표시 폭으로 맞춘다
-                width = max(display_width(t.name) for t in tags)
-                for tag in tags:
-                    print(f"  {_pad(tag.name, width)}  ({tag.color})")
-
-    except ValidationError as exc:
-        print(f"입력 오류: {exc}", file=sys.stderr)
-        return 1
-    except TodoNotFound as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-    return 0
 
 
 if __name__ == "__main__":

@@ -143,6 +143,59 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", r"\\").replace("%", r"\%").replace("_", r"\_")
 
 
+_TAG_EXISTS_SQL = """EXISTS (
+                       SELECT 1 FROM todo_tags tt
+                         JOIN tags g ON g.id = tt.tag_id
+                        WHERE tt.todo_id = todos.id AND g.name = ?
+                   )"""
+
+# LIKE 검색은 제목과 메모 두 열을 본다. ESCAPE로 사용자가 넣은 %·_를 무력화한다.
+_KEYWORD_SQL = r"(title LIKE ? ESCAPE '\' OR COALESCE(notes, '') LIKE ? ESCAPE '\')"
+
+
+def _build_list_where(
+    *,
+    done: bool | None,
+    tag: str | None,
+    keyword: str | None,
+    due_on_or_before: str | None,
+    due_before: str | None,
+    has_due: bool | None,
+) -> tuple[str, list[object]]:
+    """필터를 WHERE 절과 바인딩 값으로 조립한다. None은 '거르지 않음'."""
+    clauses: list[str] = []
+    params: list[object] = []
+
+    if done is not None:
+        clauses.append("is_done = ?")
+        params.append(1 if done else 0)
+
+    if tag is not None:
+        # JOIN이 아니라 EXISTS를 쓴다. JOIN으로 걸면 태그가 여러 개 붙은
+        # 할 일이 여러 행으로 튀어나온다.
+        clauses.append(_TAG_EXISTS_SQL)
+        params.append(normalize_tag_name(tag))
+
+    if keyword is not None and str(keyword).strip():
+        pattern = f"%{_escape_like(str(keyword).strip())}%"
+        clauses.append(_KEYWORD_SQL)
+        params.extend([pattern, pattern])
+
+    if due_on_or_before is not None:
+        clauses.append("due_date IS NOT NULL AND due_date <= ?")
+        params.append(normalize_due_date(due_on_or_before))
+
+    if due_before is not None:
+        clauses.append("due_date IS NOT NULL AND due_date < ?")
+        params.append(normalize_due_date(due_before))
+
+    if has_due is not None:
+        clauses.append("due_date IS NOT NULL" if has_due else "due_date IS NULL")
+
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    return where, params
+
+
 _TODO_COLUMNS = """
     id, title, notes, is_done, due_date, priority,
     created_at, updated_at, completed_at
@@ -283,44 +336,14 @@ class TodoRepository:
         None인 필터는 '거르지 않음'을 뜻한다.
         정렬: 미완료 먼저 → 마감일 있는 것 먼저 → 임박한 순 → 우선순위 → 등록순.
         """
-        clauses: list[str] = []
-        params: list[object] = []
-
-        if done is not None:
-            clauses.append("is_done = ?")
-            params.append(1 if done else 0)
-
-        if tag is not None:
-            # JOIN이 아니라 EXISTS를 쓴다. JOIN으로 걸면 태그가 여러 개 붙은
-            # 할 일이 여러 행으로 튀어나온다.
-            clauses.append(
-                """EXISTS (
-                       SELECT 1 FROM todo_tags tt
-                         JOIN tags g ON g.id = tt.tag_id
-                        WHERE tt.todo_id = todos.id AND g.name = ?
-                   )"""
-            )
-            params.append(normalize_tag_name(tag))
-
-        if keyword is not None and str(keyword).strip():
-            pattern = f"%{_escape_like(str(keyword).strip())}%"
-            clauses.append(
-                r"(title LIKE ? ESCAPE '\' OR COALESCE(notes, '') LIKE ? ESCAPE '\')"
-            )
-            params.extend([pattern, pattern])
-
-        if due_on_or_before is not None:
-            clauses.append("due_date IS NOT NULL AND due_date <= ?")
-            params.append(normalize_due_date(due_on_or_before))
-
-        if due_before is not None:
-            clauses.append("due_date IS NOT NULL AND due_date < ?")
-            params.append(normalize_due_date(due_before))
-
-        if has_due is not None:
-            clauses.append("due_date IS NOT NULL" if has_due else "due_date IS NULL")
-
-        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        where, params = _build_list_where(
+            done=done,
+            tag=tag,
+            keyword=keyword,
+            due_on_or_before=due_on_or_before,
+            due_before=due_before,
+            has_due=has_due,
+        )
         rows = self._conn.execute(
             f"SELECT {_TODO_COLUMNS} FROM todos {where} {self._ORDER_BY}", params
         ).fetchall()
