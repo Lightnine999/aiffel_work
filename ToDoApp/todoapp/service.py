@@ -7,15 +7,20 @@
 
 from __future__ import annotations
 
-import sqlite3
 from datetime import date
 from typing import Callable, Iterable
 
-from todoapp.models import Tag, Todo, ValidationError, parse_tag_list
-
-# _Unset은 타입 힌트 전용으로만 가져온다. 런타임 판정은 is_set()을 쓴다.
-from todoapp.repository import UNSET, _Unset, is_set
-from todoapp.stores import Store
+# _Unset은 타입 힌트 전용이다. 런타임 판정은 is_set()을 쓴다.
+from todoapp.models import (
+    UNSET,
+    Tag,
+    Todo,
+    ValidationError,
+    _Unset,
+    is_set,
+    parse_tag_list,
+)
+from todoapp.stores import Store, coerce_store
 
 SCOPES = ("all", "active", "done", "today", "overdue", "no-due")
 
@@ -45,19 +50,16 @@ def _system_today() -> str:
 class TodoService:
     def __init__(
         self,
-        store: "Store | sqlite3.Connection",
+        store: "Store | object",
         *,
         today: Callable[[], str] = _system_today,
     ) -> None:
-        """저장소를 받는다. sqlite3 커넥션을 주면 SqliteStore로 감싼다.
+        """저장소를 받는다.
 
-        커넥션도 받는 이유는 하위 호환이다 — 기존 호출부와 테스트가
-        TodoService(conn) 형태를 쓴다.
+        Store가 아닌 것(예: DB 커넥션)을 주면 stores.coerce_store가 감싼다.
+        어떤 저장소인지는 이 계층이 알 필요가 없다.
         """
-        if isinstance(store, sqlite3.Connection):
-            from todoapp.stores.sqlite_store import SqliteStore
-
-            store = SqliteStore(store)
+        store = coerce_store(store)
         self._store = store
         self._todos = store.todos
         self._tags = store.tags
@@ -128,9 +130,13 @@ class TodoService:
     ) -> Todo:
         tag_names = parse_tag_list(tags)
         with self._store.transaction():
-            todo_id = self._todos.add(title, notes=notes, due_date=due, priority=priority)
-            if tag_names:
-                self._todos.replace_tags(todo_id, self._resolve_tag_ids(tag_names))
+            todo_id = self._store.create_todo(
+                title,
+                notes=notes,
+                due_date=due,
+                priority=priority,
+                tags=tag_names,
+            )
         return self.get(todo_id)
 
     def edit(
@@ -151,7 +157,7 @@ class TodoService:
                 todo_id, title=title, notes=notes, due_date=due, priority=priority
             )
             if tag_names is not None:
-                self._todos.replace_tags(todo_id, self._resolve_tag_ids(tag_names))
+                self._store.set_tags(todo_id, tag_names)
         return self.get(todo_id)
 
     def complete(self, todo_id: int) -> Todo:
@@ -175,7 +181,3 @@ class TodoService:
             if not self._todos.set_done(todo_id, done):
                 raise TodoNotFound(todo_id)
         return self.get(todo_id)
-
-    def _resolve_tag_ids(self, names: tuple[str, ...]) -> list[int]:
-        """태그 이름을 id로. 없는 이름은 그 자리에서 만든다."""
-        return [self._tags.upsert(name).id for name in names]

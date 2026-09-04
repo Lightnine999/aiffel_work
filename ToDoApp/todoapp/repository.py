@@ -11,6 +11,7 @@ from typing import Sequence
 
 from todoapp.models import (
     DEFAULT_TAG_COLOR,
+    UNSET,
     Tag,
     Todo,
     normalize_color,
@@ -18,35 +19,9 @@ from todoapp.models import (
     normalize_priority,
     normalize_tag_name,
     normalize_title,
+    _Unset,
+    is_set,
 )
-
-
-class _Unset:
-    """'값을 주지 않았다'를 뜻하는 센티널. None(값을 비워라)과 구분하려고 쓴다."""
-
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def __repr__(self) -> str:
-        return "UNSET"
-
-    def __bool__(self) -> bool:
-        return False
-
-
-UNSET = _Unset()
-
-
-def is_set(value: object) -> bool:
-    """UNSET 센티널이 아닌 '실제로 주어진 값'인지 판정한다.
-
-    상위 계층이 isinstance(x, _Unset)처럼 비공개 이름을 쓰지 않게 하려고 노출한다.
-    """
-    return not isinstance(value, _Unset)
 
 
 def row_to_tag(row: sqlite3.Row) -> Tag:

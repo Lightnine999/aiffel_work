@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import ContextManager, Protocol, runtime_checkable
+from typing import ContextManager, Protocol, Sequence, runtime_checkable
 
 
 @runtime_checkable
@@ -23,14 +23,11 @@ class TagStore(Protocol):
 class TodoStore(Protocol):
     """할 일 접근."""
 
-    def add(self, title: str, **kwargs) -> int: ...
     def get(self, todo_id: int): ...
     def list(self, **filters) -> list: ...
     def update(self, todo_id: int, **fields) -> bool: ...
     def set_done(self, todo_id: int, done: bool) -> bool: ...
     def delete(self, todo_id: int) -> bool: ...
-    def replace_tags(self, todo_id: int, tag_ids) -> None: ...
-    def load_tags(self, todo_ids) -> dict: ...
     def count_all(self) -> int: ...
 
 
@@ -40,6 +37,27 @@ class Store(Protocol):
 
     todos: TodoStore
     tags: TagStore
+
+    def create_todo(
+        self,
+        title: str,
+        *,
+        notes: str | None = ...,
+        due_date: str | None = ...,
+        priority: int | str | None = ...,
+        tags: "Sequence[str]" = ...,
+    ) -> int:
+        """할 일을 만들고 태그를 붙인다. 태그는 **이름**으로 받는다.
+
+        이름 → id 해석을 저장소 안에 두는 이유: SQLite는 upsert 후 연결 표에
+        insert하는 2단계이고, Supabase는 서버 함수 한 번이다. 단계 수는
+        저장 방식의 문제이므로 서비스가 알 필요가 없다.
+        """
+        ...
+
+    def set_tags(self, todo_id: int, tags: "Sequence[str]") -> None:
+        """이 할 일의 태그를 주어진 이름 목록으로 통째로 교체한다."""
+        ...
 
     def transaction(self) -> ContextManager[None]:
         """여러 문장을 한 덩어리로 묶는다.
@@ -51,7 +69,7 @@ class Store(Protocol):
         ...
 
 
-__all__ = ["Store", "TodoStore", "TagStore", "build_store"]
+__all__ = ["Store", "TodoStore", "TagStore", "build_store", "coerce_store"]
 
 
 def build_store(backend: str | None = None) -> Store:
@@ -72,3 +90,19 @@ def build_store(backend: str | None = None) -> Store:
             "Supabase 저장소는 아직 구현되지 않았습니다. .env의 STORAGE=sqlite 로 두세요."
         )
     raise ValueError(f"알 수 없는 STORAGE 값입니다: {name!r} (가능: sqlite, supabase)")
+
+
+def coerce_store(obj: object) -> Store:
+    """Store가 아니면 감싼다. sqlite3 커넥션을 주면 SqliteStore로 만든다.
+
+    하위 호환용이다 — 기존 호출부와 테스트가 TodoService(conn) 형태를 쓴다.
+    이 변환을 service가 아니라 여기에 두는 이유: 저장소 종류를 아는 곳이
+    한 군데여야 한다. service가 SqliteStore를 알면 이음새가 새는 것이다.
+    """
+    import sqlite3
+
+    if isinstance(obj, sqlite3.Connection):
+        from todoapp.stores.sqlite_store import SqliteStore
+
+        return SqliteStore(obj)
+    return obj  # type: ignore[return-value]
