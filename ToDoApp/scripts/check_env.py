@@ -10,55 +10,16 @@
 
 from __future__ import annotations
 
-import base64
-import json
 import os
-import re
 import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-
-def decode_jwt_role(token: str) -> str | None:
-    """JWT 가운데 조각(payload)에서 role만 꺼낸다. 서명은 검증하지 않는다."""
-    parts = token.split(".")
-    if len(parts) != 3:
-        return None
-    payload = parts[1]
-    payload += "=" * (-len(payload) % 4)  # base64url 패딩 복원
-    try:
-        data = json.loads(base64.urlsafe_b64decode(payload))
-    except Exception:
-        return None
-    return data.get("role")
-
-
-def classify(token: str) -> tuple[str, bool, str]:
-    """(판정 이름, 안전한가, 설명)."""
-    if token.startswith("sb_publishable_"):
-        return "publishable (새 이름의 anon)", True, "브라우저에 노출돼도 되는 공개 키입니다."
-    if token.startswith("sb_secret_"):
-        return "secret (새 이름의 service_role)", False, "RLS를 우회합니다. 앱에 넣으면 안 됩니다."
-    role = decode_jwt_role(token)
-    if role == "anon":
-        return "anon (JWT)", True, "브라우저에 노출돼도 되는 공개 키입니다."
-    if role == "service_role":
-        return "service_role (JWT)", False, "RLS를 우회합니다. 앱에 넣으면 안 됩니다."
-    if role:
-        return f"알 수 없는 role: {role}", False, "anon 키인지 다시 확인하세요."
-    if re.fullmatch(r"[0-9a-fA-F]{64}", token):
-        return (
-            "JWT Secret 으로 보임 (64자 hex)",
-            False,
-            "이건 API 키가 아니라 토큰 서명 비밀입니다. 이걸로 아무 사용자든 위장할 수 있어\n"
-            "       service_role보다 위험합니다. .env에서 지우고 anon 키를 다시 가져오세요.",
-        )
-    if token.startswith("https://"):
-        return "URL 이 들어 있음", False, "키 칸에 주소를 붙이신 것 같습니다."
-    return "형식을 알 수 없음", False, "키를 잘못 복사했을 수 있습니다(줄바꿈·공백 확인)."
+from todoapp.keycheck import classify_key  # noqa: E402  (경로 설정 후 import)
 
 
 def check_connection(url: str, key: str) -> tuple[bool, str]:
@@ -107,7 +68,7 @@ def main() -> int:
         print("  ❌ SUPABASE_ANON_KEY 가 비어 있습니다.")
         problems += 1
     else:
-        name, safe, note = classify(key)
+        name, safe, note = classify_key(key)
         mark = "✅" if safe else "❌"
         print(f"  {mark} SUPABASE_ANON_KEY : {name} · 길이 {len(key)}자")
         print(f"       {note}")
