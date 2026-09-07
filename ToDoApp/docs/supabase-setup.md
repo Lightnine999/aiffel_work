@@ -81,17 +81,22 @@ python3 scripts/check_env.py --connect
 ## 3-2. 돌아올 주소(URL Configuration) 설정 — 비밀번호 찾기에 필수
 
 재설정 메일의 링크는 Supabase가 검증한 뒤 **Site URL**로 돌려보낸다. 기본값이
-`http://localhost:3000`인데 이 앱은 5000번 포트를 쓰므로, 그대로 두면 링크를 눌러도
-`ERR_CONNECTION_REFUSED`가 뜬다.
+`http://localhost:3000`이라 그대로 두면 링크를 눌러도 `ERR_CONNECTION_REFUSED`가 뜬다.
 
 대시보드 → **Authentication** → **URL Configuration**
 
 | 항목 | 값 |
 |---|---|
-| Site URL | `http://127.0.0.1:5000` |
-| Redirect URLs | `http://127.0.0.1:5000/**` |
+| Site URL | `http://127.0.0.1:5001` |
+| Redirect URLs | `http://127.0.0.1:5001/**` · `http://localhost:5001/**` |
 
-(2026-09-07 적용 완료)
+(2026-09-07 적용 완료. 옛 `:5000` 항목도 남겨뒀다 — 지워도 무방하다)
+
+> **포트가 5000이 아닌 이유**: macOS Monterey부터 **AirPlay 수신기가 5000번을 상시 점유**한다.
+> Flask 기본 포트가 5000이라 무심코 쓰면 앱과 자리를 나눠 갖게 되고,
+> `localhost:5000`은 AirPlay가 받아 **403 (Server: AirTunes)** 을 돌려준다.
+> 5001로 옮겨 `localhost`·`127.0.0.1` 둘 다 정상 동작한다.
+> 포트는 `.env`의 `PORT`로 바꿀 수 있다.
 
 ## 3-3. 왜 링크 방식인가 — 6자리 코드를 못 쓰는 이유
 
