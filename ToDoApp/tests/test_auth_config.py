@@ -167,3 +167,50 @@ class TestSessionStore:
         assert clear(path) is True
         assert load(path) is None
         assert clear(path) is False
+
+
+class TestPort:
+    """5000을 기본값으로 쓰지 않는다 — macOS AirPlay가 그 포트를 점유한다."""
+
+    def test_기본값은_5001이다(self, monkeypatch):
+        from todoapp.config import get_port
+
+        monkeypatch.delenv("PORT", raising=False)
+        assert get_port() == 5001
+
+    def test_5000을_기본값으로_쓰지_않는다(self, monkeypatch):
+        from todoapp.config import get_port
+
+        monkeypatch.delenv("PORT", raising=False)
+        assert get_port() != 5000
+
+    def test_env로_바꿀_수_있다(self, monkeypatch):
+        from todoapp.config import get_port
+
+        monkeypatch.setenv("PORT", "8080")
+        assert get_port() == 8080
+
+    def test_공백을_다듬는다(self, monkeypatch):
+        from todoapp.config import get_port
+
+        monkeypatch.setenv("PORT", "  8080  ")
+        assert get_port() == 8080
+
+    @pytest.mark.parametrize("bad", ["abc", "1.5", ""])
+    def test_숫자가_아니면_기본값이거나_거부한다(self, monkeypatch, bad):
+        from todoapp.config import DEFAULT_PORT, get_port
+
+        monkeypatch.setenv("PORT", bad)
+        if bad.strip() == "":
+            assert get_port() == DEFAULT_PORT
+        else:
+            with pytest.raises(RuntimeError, match="숫자"):
+                get_port()
+
+    @pytest.mark.parametrize("bad", ["0", "70000", "-1"])
+    def test_범위_밖은_거부한다(self, monkeypatch, bad):
+        from todoapp.config import get_port
+
+        monkeypatch.setenv("PORT", bad)
+        with pytest.raises(RuntimeError, match="65535"):
+            get_port()
