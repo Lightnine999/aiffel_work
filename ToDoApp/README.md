@@ -70,7 +70,11 @@ python3 todo.py logout
 python3 app.py
 ```
 
-`http://127.0.0.1:5000` 을 브라우저에서 연다.
+실행하면 접속 주소가 출력된다. 기본은 `http://localhost:5001` 이다.
+
+> **왜 5001인가**: macOS는 5000번 포트를 AirPlay 수신기가 상시 점유한다.
+> Flask 기본값이 5000이라 그대로 쓰면 `localhost:5000`이 AirPlay로 가서 403이 뜬다.
+> 포트를 바꾸려면 `.env`의 `PORT`를 고친다.
 
 ## 클라우드로 전환
 
@@ -146,6 +150,7 @@ python3 -m pytest tests/ -q --ignore=tests/test_supabase_integration.py  # 네�
   여러 사람이 쓰게 만들려면 Flask-WTF로 CSRF를 붙여야 한다.
   로그인이 생기면서 이건 실제 위험이 됐다 — 노출 전에 반드시 처리할 것.
 - `app.py`의 host를 `0.0.0.0`으로 바꾸지 말 것.
+- 포트는 `.env`의 `PORT`로 바꾼다 (기본 5001).
 - 비밀값은 `.env`에만 둔다. `.env`와 `*.db`는 `.gitignore`에 등록되어 있다.
 
 ## 알아둘 것 하나 (SQLite 함정)

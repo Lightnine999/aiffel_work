@@ -98,3 +98,27 @@ def get_supabase_anon_key() -> str:
         # 키 값 자체는 메시지에 담지 않는다
         raise RuntimeError(f"SUPABASE_ANON_KEY 가 안전하지 않습니다 — {name}. {note}")
     return key
+
+
+DEFAULT_PORT = 5001
+
+
+def get_port() -> int:
+    """웹 서버 포트. .env의 PORT, 없으면 5001.
+
+    5000을 기본값으로 쓰지 않는 이유: macOS Monterey부터 AirPlay 수신기가
+    5000번을 상시 점유한다. 우리 앱과 자리를 나눠 갖게 되어 localhost로
+    들어가면 AirPlay가 403을 돌려주고, 127.0.0.1로 들어가야만 앱에 닿는다.
+    Flask의 기본 포트가 5000이라 무심코 쓰기 쉬운 함정이다.
+    """
+    load_dotenv(PROJECT_ROOT / ".env")
+    raw = os.getenv("PORT", "").strip()
+    if not raw:
+        return DEFAULT_PORT
+    try:
+        port = int(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"PORT 값이 숫자가 아닙니다: {raw!r}") from exc
+    if not (1 <= port <= 65535):
+        raise RuntimeError(f"PORT는 1~65535 사이여야 합니다: {port}")
+    return port
