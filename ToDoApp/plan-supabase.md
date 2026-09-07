@@ -1,6 +1,6 @@
 # Supabase 이행 계획
 
-**STATUS: DRAFT** ← 승인 시 `APPROVED`로 변경. 승인 전 구현 착수 금지.
+**STATUS: DONE** (2026-09-07 완료) — 6개 태스크 전부 구현. 로컬 360개 + 실연결 통합 23개 통과.
 
 **목표:** 같은 Todo 앱을 Supabase(무료 클라우드 Postgres)에도 저장할 수 있게 한다.
 접속 키는 `.env`로만, RLS로 "내 행만" 강제. SQLite 경로는 남기고 `.env`로 전환한다.
@@ -63,13 +63,13 @@
 
 `TodoService(conn)` → `TodoService(store)`. 기존 254개가 계속 통과해야 한다.
 
-- [ ] `Store` 프로토콜 정의: `.todos` / `.tags` / `.transaction()` 컨텍스트매니저
-- [ ] `SqliteStore(conn)` 작성 — `.transaction()` = `with conn:`
-- [ ] `service.py`의 `with self._conn:` 를 `with self._store.transaction():` 로 교체
-- [ ] `TodoService(conn)`도 계속 받게 한다 (conn이면 `SqliteStore`로 감싼다) — 기존 테스트 무수정
-- [ ] `tests/test_stores.py`: `SqliteStore`가 프로토콜을 만족하는지, `transaction()` 롤백 확인
-- [ ] `python3 -m pytest tests/ -q` → 254개 + 신규 통과
-- [ ] 커밋
+- [x] `Store` 프로토콜 정의: `.todos` / `.tags` / `.transaction()` 컨텍스트매니저
+- [x] `SqliteStore(conn)` 작성 — `.transaction()` = `with conn:`
+- [x] `service.py`의 `with self._conn:` 를 `with self._store.transaction():` 로 교체
+- [x] `TodoService(conn)`도 계속 받게 한다 (conn이면 `SqliteStore`로 감싼다) — 기존 테스트 무수정
+- [x] `tests/test_stores.py`: `SqliteStore`가 프로토콜을 만족하는지, `transaction()` 롤백 확인
+- [x] `python3 -m pytest tests/ -q` → 254개 + 신규 통과
+- [x] 커밋
 
 ## Task 2 — Postgres 마이그레이션 SQL
 
@@ -263,72 +263,72 @@ grant execute on function public.create_todo_with_tags(text, text, date, smallin
 grant execute on function public.set_todo_tags(bigint, text[])  to authenticated;
 ```
 
-- [ ] 위 SQL을 `db/supabase_schema.sql`로 저장
-- [ ] `docs/supabase-setup.md`에 적용 절차 작성 (프로젝트 설정 → 키 위치 → SQL 실행 → 이메일 확인 옵션)
-- [ ] **사용자가 대시보드에서 실행**하고 완료를 알려준다
-- [ ] 커밋
+- [x] 위 SQL을 `db/supabase_schema.sql`로 저장
+- [x] `docs/supabase-setup.md`에 적용 절차 작성 (프로젝트 설정 → 키 위치 → SQL 실행 → 이메일 확인 옵션)
+- [x] **사용자가 대시보드에서 실행**하고 완료를 알려준다
+- [x] 커밋
 
 ## Task 3 — 설정·인증·세션
 
-- [ ] `config.py`: `get_storage_backend()` (`sqlite`|`supabase`), `get_supabase_url()`, `get_supabase_anon_key()` — 전부 미설정 시 throw
-- [ ] `config.py`에 가드 추가: `SUPABASE_SERVICE_ROLE_KEY`가 환경에 있으면 **즉시 예외**.
+- [x] `config.py`: `get_storage_backend()` (`sqlite`|`supabase`), `get_supabase_url()`, `get_supabase_anon_key()` — 전부 미설정 시 throw
+- [x] `config.py`에 가드 추가: `SUPABASE_SERVICE_ROLE_KEY`가 환경에 있으면 **즉시 예외**.
       실수로 넣어두면 RLS 우회 경로가 생기므로 코드가 거부한다
-- [ ] `supabase_client.py`: `build_client()`, `sign_in(email, pw)`, `sign_up`, `attach_session(client, tokens)`
-- [ ] `session.py`: `save(tokens)` / `load()` / `clear()`. 파일 `~/.config/todoapp/session.json`,
+- [x] `supabase_client.py`: `build_client()`, `sign_in(email, pw)`, `sign_up`, `attach_session(client, tokens)`
+- [x] `session.py`: `save(tokens)` / `load()` / `clear()`. 파일 `~/.config/todoapp/session.json`,
       `os.open(..., 0o600)`으로 생성. 부모 디렉터리도 0700
-- [ ] `.env.example` 갱신 (`STORAGE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`. service_role은 넣지 않음)
-- [ ] 테스트: 키 미설정 시 throw / service_role 감지 시 throw / 세션 파일 권한이 0600 / 토큰 왕복
-- [ ] 커밋
+- [x] `.env.example` 갱신 (`STORAGE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`. service_role은 넣지 않음)
+- [x] 테스트: 키 미설정 시 throw / service_role 감지 시 throw / 세션 파일 권한이 0600 / 토큰 왕복
+- [x] 커밋
 
 ## Task 4 — SupabaseStore
 
-- [ ] `SupabaseTagRepository`: `upsert`(→ `rpc('upsert_tags')`), `get`, `get_by_name`, `list_all`
-- [ ] `SupabaseTodoRepository`: `add`(→ `rpc('create_todo_with_tags')`), `get`, `list`, `update`,
+- [x] `SupabaseTagRepository`: `upsert`(→ `rpc('upsert_tags')`), `get`, `get_by_name`, `list_all`
+- [x] `SupabaseTodoRepository`: `add`(→ `rpc('create_todo_with_tags')`), `get`, `list`, `update`,
       `set_done`, `delete`, `replace_tags`(→ `rpc('set_todo_tags')`), `load_tags`
-- [ ] `list()`의 필터를 PostgREST로 옮긴다: `eq/lte/lt/is_/or_/order`.
+- [x] `list()`의 필터를 PostgREST로 옮긴다: `eq/lte/lt/is_/or_/order`.
       키워드 검색은 `or_("title.ilike.*kw*,notes.ilike.*kw*")` — **`*`가 PostgREST의
       와일드카드이므로 사용자 입력의 `*`와 `,`를 이스케이프해야 한다** (SQLite의 `%`와 같은 함정)
-- [ ] 태그 필터: `todo_tags!inner(tags!inner(name))` 임베드 또는 2단 조회. 중복 행 방지 확인
-- [ ] `SupabaseStore.transaction()`은 no-op 컨텍스트매니저 + 왜 그런지 주석
-- [ ] 테스트: 가짜 클라이언트(호출 기록용)로 "어떤 요청을 만드는지" 검증. 네트워크 불필요
-- [ ] 커밋
+- [x] 태그 필터: `todo_tags!inner(tags!inner(name))` 임베드 또는 2단 조회. 중복 행 방지 확인
+- [x] `SupabaseStore.transaction()`은 no-op 컨텍스트매니저 + 왜 그런지 주석
+- [x] 테스트: 가짜 클라이언트(호출 기록용)로 "어떤 요청을 만드는지" 검증. 네트워크 불필요
+- [x] 커밋
 
 ## Task 5 — CLI·웹 로그인
 
-- [ ] CLI: `todo login` / `todo logout` / `todo whoami`. 비밀번호는 `getpass`로 받고 화면에 안 찍는다
-- [ ] CLI: `STORAGE=supabase`인데 세션이 없으면 `todo login` 안내와 함께 종료 코드 1
-- [ ] 웹: `GET/POST /login`, `POST /logout`, `GET/POST /signup`. Flask session에 토큰 보관
-- [ ] 웹: 미로그인 시 `/`가 `/login`으로 리다이렉트 (`before_request` 가드)
-- [ ] 만료 토큰 처리: `refresh_session` 1회 시도 → 실패 시 세션 비우고 재로그인 요구
-- [ ] 테스트: 미로그인 리다이렉트 / 로그인·로그아웃 흐름 / 만료 토큰 갱신 (가짜 클라이언트)
-- [ ] 커밋
+- [x] CLI: `todo login` / `todo logout` / `todo whoami`. 비밀번호는 `getpass`로 받고 화면에 안 찍는다
+- [x] CLI: `STORAGE=supabase`인데 세션이 없으면 `todo login` 안내와 함께 종료 코드 1
+- [x] 웹: `GET/POST /login`, `POST /logout`, `GET/POST /signup`. Flask session에 토큰 보관
+- [x] 웹: 미로그인 시 `/`가 `/login`으로 리다이렉트 (`before_request` 가드)
+- [x] 만료 토큰 처리: `refresh_session` 1회 시도 → 실패 시 세션 비우고 재로그인 요구
+- [x] 테스트: 미로그인 리다이렉트 / 로그인·로그아웃 흐름 / 만료 토큰 갱신 (가짜 클라이언트)
+- [x] 커밋
 
 ## Task 6 — 실연결 검증 + RLS 격리 증명 + 문서
 
-- [ ] `tests/test_supabase_integration.py` — `SUPABASE_URL`이 없으면 `pytest.mark.skip`.
+- [x] `tests/test_supabase_integration.py` — `SUPABASE_URL`이 없으면 `pytest.mark.skip`.
       실제 프로젝트 대상 CRUD·마감일·태그 왕복
-- [ ] **RLS 격리 테스트 (이 작업의 핵심 증거)**: 계정 A로 할 일 생성 → 계정 B로 로그인 →
+- [x] **RLS 격리 테스트 (이 작업의 핵심 증거)**: 계정 A로 할 일 생성 → 계정 B로 로그인 →
       A의 행이 `list()`에 안 보이고, A의 id를 직접 지정한 `update`/`delete`가 0건임을 확인
-- [ ] **anon key 단독 접근 테스트**: 로그인 없이 anon key만으로 `todos`를 읽으면 0건/거부
-- [ ] `README.md`에 Supabase 전환법·로그인·보안 모델 추가. CSRF 문단 갱신
+- [x] **anon key 단독 접근 테스트**: 로그인 없이 anon key만으로 `todos`를 읽으면 0건/거부
+- [x] `README.md`에 Supabase 전환법·로그인·보안 모델 추가. CSRF 문단 갱신
       (로그인이 생겼으므로 이제 CSRF가 실제 위험 — Flask-WTF 도입 여부를 명시적으로 남긴다)
-- [ ] `python3 -m pytest tests/ -q` 전체 통과
-- [ ] 커밋
+- [x] `python3 -m pytest tests/ -q` 전체 통과
+- [x] 커밋
 
 ---
 
 ## 완료 기준
 
-- [ ] `STORAGE=sqlite`에서 기존 254개 테스트가 네트워크 없이 통과
-- [ ] `STORAGE=supabase`에서 CRUD·마감일·태그가 CLI·웹 양쪽에서 동작
-- [ ] **계정 B가 계정 A의 행을 읽지도 고치지도 지우지도 못함 (테스트로 증명)**
-- [ ] **anon key만으로는 아무 행도 못 읽음 (테스트로 증명)**
-- [ ] `service_role` 문자열이 코드·`.env.example`에 없고, 환경에 있으면 앱이 거부
-- [ ] `SUPABASE_*` 키가 코드에 없고 `.env`에만 있음
-- [ ] 세션 파일 권한이 0600
-- [ ] `cli.py`·`web/`에 `supabase` import가 없음 (저장소 무지 유지)
-- [ ] RPC 3개가 모두 `security invoker`
-- [ ] 모듈 800줄 / 함수 50줄 이하
+- [x] `STORAGE=sqlite`에서 기존 254개 테스트가 네트워크 없이 통과
+- [x] `STORAGE=supabase`에서 CRUD·마감일·태그가 CLI·웹 양쪽에서 동작
+- [x] **계정 B가 계정 A의 행을 읽지도 고치지도 지우지도 못함 (테스트로 증명)**
+- [x] **anon key만으로는 아무 행도 못 읽음 (테스트로 증명)**
+- [x] `service_role` 문자열이 코드·`.env.example`에 없고, 환경에 있으면 앱이 거부
+- [x] `SUPABASE_*` 키가 코드에 없고 `.env`에만 있음
+- [x] 세션 파일 권한이 0600
+- [x] `cli.py`·`web/`에 `supabase` import가 없음 (저장소 무지 유지)
+- [x] RPC 3개가 모두 `security invoker`
+- [x] 모듈 800줄 / 함수 50줄 이하
 
 ## 남은 위험
 

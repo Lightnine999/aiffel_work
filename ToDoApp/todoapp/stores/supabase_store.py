@@ -257,7 +257,15 @@ class SupabaseTodoStore:
         if due_before is not None:
             query = query.lt("due_date", normalize_due_date(due_before))
         if has_due is not None:
-            query = query.is_("due_date", "null" if not has_due else "not.null")
+            # PostgREST에서 'is not null'은 not_.is_(col, "null") 이다.
+            # is_(col, "not.null")로 쓰면 is.not.null 이 되어 파싱 오류가 난다
+            # (PGRST100). 가짜 클라이언트 테스트로는 못 잡는 종류의 버그다 —
+            # 통합 테스트가 잡았다.
+            query = (
+                query.not_.is_("due_date", "null")
+                if has_due
+                else query.is_("due_date", "null")
+            )
         if keyword is not None and str(keyword).strip():
             pattern = f"*{escape_postgrest_pattern(str(keyword).strip())}*"
             query = query.or_(f"title.ilike.{pattern},notes.ilike.{pattern}")

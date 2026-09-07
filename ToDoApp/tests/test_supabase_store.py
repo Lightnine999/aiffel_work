@@ -29,6 +29,12 @@ class FakeQuery:
         self._recorder.append((name, args, kwargs))
         return self
 
+    @property
+    def not_(self):
+        """postgrest의 not_ 은 메서드가 아니라 속성이다. 다음 필터를 뒤집는다."""
+        self._recorder.append(("not_", (), {}))
+        return self
+
     def __getattr__(self, name):
         def call(*args, **kwargs):
             return self._record(name, *args, **kwargs)
@@ -124,8 +130,19 @@ class TestList:
         store_for(client).todos.list(due_before="2026-09-04")
         assert ("due_date", "2026-09-04") in client.args_for("lt")
 
-    def test_마감일_유무로_거른다(self, client):
+    def test_마감일_없음으로_거른다(self, client):
         store_for(client).todos.list(has_due=False)
+        assert ("due_date", "null") in client.args_for("is_")
+        assert "not_" not in client.method_names()
+
+    def test_마감일_있음은_not_is_null_로_거른다(self, client):
+        # is_("due_date", "not.null")로 쓰면 PostgREST가 PGRST100으로 거부한다.
+        # 실제 서버에 붙어봐야 드러나는 버그라 통합 테스트가 잡았고,
+        # 이 테스트가 되돌아오는 것을 막는다.
+        store_for(client).todos.list(has_due=True)
+        names = client.method_names()
+        assert "not_" in names
+        assert names.index("not_") < names.index("is_")
         assert ("due_date", "null") in client.args_for("is_")
 
     def test_키워드는_제목과_메모_둘_다_본다(self, client):
