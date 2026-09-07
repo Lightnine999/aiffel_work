@@ -78,6 +78,59 @@ python3 scripts/check_env.py --connect
 
 > 실제 서비스로 쓸 거라면 이건 켜둬야 한다. 남의 이메일로 가입하는 것을 막는 장치다.
 
+## 3-2. 돌아올 주소(URL Configuration) 설정 — 비밀번호 찾기에 필수
+
+재설정 메일의 링크는 Supabase가 검증한 뒤 **Site URL**로 돌려보낸다. 기본값이
+`http://localhost:3000`인데 이 앱은 5000번 포트를 쓰므로, 그대로 두면 링크를 눌러도
+`ERR_CONNECTION_REFUSED`가 뜬다.
+
+대시보드 → **Authentication** → **URL Configuration**
+
+| 항목 | 값 |
+|---|---|
+| Site URL | `http://127.0.0.1:5000` |
+| Redirect URLs | `http://127.0.0.1:5000/**` |
+
+(2026-09-07 적용 완료)
+
+## 3-3. 왜 링크 방식인가 — 6자리 코드를 못 쓰는 이유
+
+무료 플랜은 **커스텀 SMTP 없이 메일 템플릿을 수정할 수 없다.** 대시보드에 이렇게
+쓰여 있다:
+
+> Set up custom SMTP to edit templates.
+> Emails will be sent using the default templates.
+
+기본 "Reset password" 템플릿에는 **링크만 있고 6자리 코드가 없다.** 코드를 실으려면
+템플릿에 `{{ .Token }}`을 넣어야 하는데 그게 막혀 있다. 그래서 링크 방식을 쓴다.
+
+**커스텀 SMTP를 붙이면** (Resend·SendGrid 등 무료 티어 → **Authentication → Emails →
+SMTP Settings**) 템플릿 수정이 열리고, 덤으로 **팀원이 아닌 사람에게도 메일이 간다**
+(기본 SMTP는 프로젝트 팀원 주소로만 발송하며 시간당 2통 제한이 있다).
+
+## 3-4. 비밀번호 찾기 — 쓰는 법
+
+**웹 (권장)**
+
+1. 로그인 화면 → **"비밀번호를 잊으셨나요?"**
+2. 이메일 입력 → 메일함(스팸함 포함)에서 `Reset your password` 열기
+3. **Reset password** 링크 클릭 → 앱으로 돌아옴
+4. 새 비밀번호 2회 입력 → 끝 (바로 로그인 상태)
+
+**터미널**
+
+```bash
+python3 todo.py reset-password --email <가입한 이메일>
+```
+
+메일의 링크를 **누르지 말고** 우클릭 → **링크 주소 복사** 해서 붙여넣는다.
+링크는 한 번만 쓸 수 있어서, 브라우저에서 누르면 터미널에서는 못 쓴다.
+
+> 링크에 담긴 토큰은 서버가 `verify_otp(token_hash=…)`로 직접 확인한다.
+> 웹은 Supabase가 돌려준 세션 토큰을 쓰고(주소의 `#` 뒤에 실려 오므로
+> 자바스크립트가 꺼낸다), 터미널은 링크의 토큰을 쓴다. 경로는 둘이지만
+> 마지막 단계(`update_user`로 비밀번호 변경)는 같다.
+
 ## 4. 계정 만들기
 
 ```bash

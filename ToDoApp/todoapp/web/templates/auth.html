@@ -28,6 +28,7 @@
       <button class="primary" type="submit">{{ title }}</button>
       {% if mode == 'login' %}
         <a class="tab" href="{{ url_for('.signup') }}" style="margin-left:8px">계정 만들기</a>
+        <a class="tab" href="{{ url_for('.reset') }}" style="margin-left:4px">비밀번호를 잊으셨나요?</a>
       {% else %}
         <a class="tab" href="{{ url_for('.login') }}" style="margin-left:8px">로그인으로</a>
       {% endif %}

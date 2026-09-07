@@ -13,7 +13,13 @@ from todoapp.supabase_client import AuthError
 bp = Blueprint("todos", __name__)
 
 # 로그인하지 않아도 열 수 있는 화면
-_PUBLIC_ENDPOINTS = {"todos.login", "todos.signup", "static"}
+_PUBLIC_ENDPOINTS = {
+    "todos.login",
+    "todos.signup",
+    "todos.reset",
+    "todos.reset_callback",
+    "static",
+}
 
 
 def _web():
@@ -75,6 +81,63 @@ def _auth_screen(mode: str, title: str, action):
             email=request.form.get("email", ""),
         )
     web.save_tokens(tokens)
+    return redirect(url_for(".index"))
+
+
+@bp.route("/reset", methods=["GET", "POST"])
+def reset():
+    """1단계 — 이메일을 받아 재설정 링크를 보낸다."""
+    web = _web()
+    if not web.requires_login():
+        return redirect(url_for(".index"))
+    if request.method == "GET":
+        return render_template("reset.html")
+
+    email = request.form.get("email", "")
+    try:
+        auth_flow.request_password_reset(
+            email, redirect_to=url_for(".reset_callback", _external=True)
+        )
+    except (AuthError, RuntimeError) as exc:
+        flash(str(exc))
+        return render_template("reset.html", email=email)
+    # 계정이 없어도 같은 화면을 보여준다 — 응답이 갈리면 가입 여부가 새어 나간다
+    return render_template("reset_sent.html", email=email)
+
+
+@bp.route("/reset/callback", methods=["GET", "POST"])
+def reset_callback():
+    """2단계 — 메일 링크가 돌아오는 자리. 새 비밀번호를 받는다.
+
+    Supabase는 링크를 검증한 뒤 토큰을 주소의 '#' 뒤에 붙여 보낸다.
+    서버는 '#' 뒤를 못 보므로 화면의 자바스크립트가 꺼내 숨은 칸에 채운다.
+    """
+    web = _web()
+    if not web.requires_login():
+        return redirect(url_for(".index"))
+    if request.method == "GET":
+        return render_template("reset_callback.html")
+
+    password = request.form.get("password", "")
+    password2 = request.form.get("password2", "")
+    try:
+        if password != password2:
+            raise AuthError("두 비밀번호가 일치하지 않습니다.")
+        tokens = auth_flow.complete_password_reset_with_session(
+            request.form.get("access_token", ""),
+            request.form.get("refresh_token", ""),
+            password,
+        )
+    except (AuthError, RuntimeError) as exc:
+        flash(str(exc))
+        # 토큰은 숨은 칸으로 되살린다. 비밀번호는 되돌려주지 않는다.
+        return render_template(
+            "reset_callback.html",
+            access_token=request.form.get("access_token", ""),
+            refresh_token=request.form.get("refresh_token", ""),
+        )
+    web.save_tokens(tokens)
+    flash("비밀번호를 바꿨습니다.")
     return redirect(url_for(".index"))
 
 

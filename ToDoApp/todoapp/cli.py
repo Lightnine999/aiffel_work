@@ -208,6 +208,8 @@ def _register_auth(sub: argparse._SubParsersAction) -> None:
         )
     sub.add_parser("logout", help="로그아웃")
     sub.add_parser("whoami", help="현재 로그인한 계정 보기")
+    p_reset = sub.add_parser("reset-password", help="비밀번호 찾기 (메일로 코드 받기)")
+    p_reset.add_argument("--email", help="이메일 (생략하면 물어봅니다)")
 
 
 # ---------------------------------------------------------------- 명령 처리
@@ -321,6 +323,36 @@ def _cmd_logout(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ask_new_password() -> str:
+    """새 비밀번호를 두 번 받아 대조한다. 화면에는 남지 않는다."""
+    first = getpass.getpass("새 비밀번호 (6자 이상): ")
+    second = getpass.getpass("새 비밀번호 확인: ")
+    if first != second:
+        raise AuthError("두 비밀번호가 일치하지 않습니다.")
+    return first
+
+
+def _cmd_reset_password(args: argparse.Namespace) -> int:
+    """이메일 → 메일 링크 붙여넣기 → 새 비밀번호를 한 명령 안에서 처리한다."""
+    email = args.email or input("이메일: ").strip()
+    auth_flow.request_password_reset(email)
+    # 계정이 없어도 같은 문구다 — 다르게 답하면 가입 여부가 새어 나간다
+    print(f"재설정 링크를 메일로 보냈습니다. ({email})")
+    print("메일함(스팸함 포함)에서 'Reset your password' 메일을 여세요.")
+    print()
+    print("  ⚠️  링크를 '누르지' 마시고, 우클릭 → 링크 주소 복사 로 가져오세요.")
+    print("     링크는 한 번만 쓸 수 있어서, 누르면 터미널에서 못 씁니다.")
+    print("     (브라우저에서 그냥 눌러 진행하셔도 됩니다 — 그 경우 이 명령은 취소하세요.)")
+    print()
+
+    link = input("복사한 링크 주소: ")
+    password = _ask_new_password()
+    tokens = auth_flow.confirm_password_reset(link, password)
+    save_session(tokens, SESSION_PATH)
+    print(f"비밀번호를 바꿨습니다. 로그인 상태입니다. ({tokens.email})")
+    return 0
+
+
 def _cmd_whoami(args: argparse.Namespace) -> int:
     tokens = load_session(SESSION_PATH)
     if tokens is None:
@@ -336,6 +368,7 @@ _AUTH_COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
     "signup": _cmd_signup,
     "logout": _cmd_logout,
     "whoami": _cmd_whoami,
+    "reset-password": _cmd_reset_password,
 }
 
 

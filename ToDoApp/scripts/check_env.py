@@ -41,6 +41,9 @@ def check_connection(url: str, key: str) -> tuple[bool, str]:
         return True, "접속 성공 — todos 표가 이미 있습니다."
     except Exception as exc:
         message = str(exc)
+        if any(m in message for m in ("42501", "permission denied")):
+            # anon이 거부당하는 것이 목표 상태다. 표가 있고 잠겨 있다는 뜻.
+            return True, "접속 성공 — 표가 있고 anon은 차단됨 (RLS 정상. 로그인해야 보입니다)"
         if any(m in message for m in ("42P01", "does not exist", "Could not find the table")):
             return True, "접속 성공 — 인증 통과 (todos 표는 아직 없음. 스키마 SQL을 실행하세요)"
         if any(m in message for m in ("Invalid API key", "401", "JWT")):

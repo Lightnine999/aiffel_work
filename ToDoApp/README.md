@@ -15,6 +15,7 @@
 
 - 할 일 추가 / 목록 / 완료 표시 / 삭제 (CRUD)
 - **클라우드 저장 + 행 수준 보안(RLS)** — 내 할 일은 나에게만 보인다
+- **비밀번호 찾기** — 메일 링크로 재설정 (웹·터미널 모두)
 - **마감일** — 오늘까지·기한 지남 필터, 임박한 순 정렬
 - **태그** — 하나의 할 일에 여러 태그, 태그로 필터
 - 제목·메모 검색, 우선순위(높음/보통/낮음), 메모, 내용 수정
@@ -54,6 +55,7 @@ python3 todo.py tags                # 태그 목록
 python3 todo.py signup              # 계정 만들기
 python3 todo.py login               # 로그인 (비밀번호는 화면에 안 보이게 입력)
 python3 todo.py whoami              # 현재 계정 확인
+python3 todo.py reset-password      # 비밀번호 찾기 (메일 링크 붙여넣기)
 python3 todo.py logout
 ```
 

@@ -82,6 +82,42 @@ def attach_session(client: "Client", tokens: Tokens) -> Tokens:
         raise AuthError("세션이 만료되었습니다. 다시 로그인하세요.") from exc
 
 
+def send_recovery_email(client: "Client", email: str, redirect_to: str | None = None) -> None:
+    """비밀번호 재설정 메일을 보낸다.
+
+    Supabase는 존재하지 않는 이메일에도 성공을 돌려준다 — 계정 존재 여부를
+    흘리지 않기 위한 설계다. 우리도 그 태도를 유지한다 (auth_flow 참고).
+    """
+    options = {"redirect_to": redirect_to} if redirect_to else None
+    try:
+        client.auth.reset_password_for_email(email, options)
+    except Exception as exc:
+        raise AuthError(_friendly(exc)) from exc
+
+
+def verify_recovery_token(client: "Client", token_hash: str) -> Tokens:
+    """메일 링크에 실린 토큰을 확인하고 세션을 받는다.
+
+    링크는 한 번만 쓸 수 있다 — 브라우저에서 이미 눌렀다면 그 토큰은 소진된다.
+    그래서 CLI에서는 '누르지 말고 주소를 복사'해야 한다.
+    """
+    try:
+        response = client.auth.verify_otp(
+            {"token_hash": token_hash, "type": "recovery"}
+        )
+    except Exception as exc:
+        raise AuthError(_friendly(exc)) from exc
+    return _tokens_from_response(response)
+
+
+def change_password(client: "Client", new_password: str) -> None:
+    """현재 세션의 비밀번호를 바꾼다. 본인 확인(토큰 검증·세션 부착) 직후에 부른다."""
+    try:
+        client.auth.update_user({"password": new_password})
+    except Exception as exc:
+        raise AuthError(_friendly(exc)) from exc
+
+
 def sign_out(client: "Client") -> None:
     try:
         client.auth.sign_out()
@@ -99,6 +135,12 @@ def _friendly(exc: Exception) -> str:
         "User already registered": "이미 가입된 이메일입니다. 로그인하세요.",
         "Password should be at least": "비밀번호가 너무 짧습니다 (최소 6자).",
         "Unable to validate email address": "이메일 형식이 올바르지 않습니다.",
+        "Token has expired or is invalid": "코드가 만료되었거나 올바르지 않습니다. 다시 요청하세요.",
+        "otp_expired": "코드가 만료되었습니다. 다시 요청하세요.",
+        "For security purposes": "요청이 너무 잦습니다. 잠시 후 다시 시도하세요.",
+        "over_email_send_rate_limit": "메일 발송 한도를 넘었습니다. 잠시 후 다시 시도하세요.",
+        "New password should be different": "이전과 다른 비밀번호를 쓰세요.",
+        "Auth session missing": "세션이 없습니다. 코드 확인부터 다시 하세요.",
     }
     for needle, friendly in table.items():
         if needle in message:
