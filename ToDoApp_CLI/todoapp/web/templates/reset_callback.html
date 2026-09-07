@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}새 비밀번호 설정{% endblock %}
+
+{% block content %}
+<h1>새 비밀번호 설정</h1>
+<p class="sub">본인 확인이 끝났습니다. 새 비밀번호를 정하세요.</p>
+
+<div class="card">
+  <div id="missing" hidden>
+    <p>재설정 정보를 찾지 못했습니다. 링크가 만료됐거나 이미 사용됐을 수 있습니다.</p>
+    <p style="margin:12px 0 0"><a class="tab" href="{{ url_for('.reset') }}">링크 다시 받기</a></p>
+  </div>
+
+  <form id="form" method="post" action="{{ url_for('.reset_callback') }}" hidden>
+    <input type="hidden" id="access_token" name="access_token" value="{{ access_token or '' }}">
+    <input type="hidden" id="refresh_token" name="refresh_token" value="{{ refresh_token or '' }}">
+    <p>
+      <label for="password">새 비밀번호 (6자 이상)</label>
+      <input id="password" name="password" type="password" required
+             autocomplete="new-password" style="width:100%">
+    </p>
+    <p>
+      <label for="password2">새 비밀번호 확인</label>
+      <input id="password2" name="password2" type="password" required
+             autocomplete="new-password" style="width:100%">
+    </p>
+    <p style="margin:16px 0 0"><button class="primary" type="submit">비밀번호 바꾸기</button></p>
+  </form>
+</div>
+
+<footer>비밀번호는 Supabase가 관리합니다. 이 앱은 저장하지 않습니다.</footer>
+
+<script>
+  // Supabase는 토큰을 주소의 '#' 뒤에 붙여 보낸다. 서버는 '#' 뒤를 볼 수 없으므로
+  // 여기서 꺼내 숨은 칸에 넣는다. 그리고 주소창에서 지워 기록에 남지 않게 한다.
+  (function () {
+    var access = document.getElementById('access_token');
+    var refresh = document.getElementById('refresh_token');
+    var hash = window.location.hash.replace(/^#/, '');
+    if (hash) {
+      var params = new URLSearchParams(hash);
+      if (params.get('access_token')) {
+        access.value = params.get('access_token');
+        refresh.value = params.get('refresh_token') || '';
+        history.replaceState(null, '', window.location.pathname);
+      }
+    }
+    var ready = access.value && refresh.value;
+    document.getElementById('form').hidden = !ready;
+    document.getElementById('missing').hidden = !!ready;
+    if (ready) { document.getElementById('password').focus(); }
+  })();
+</script>
+{% endblock %}

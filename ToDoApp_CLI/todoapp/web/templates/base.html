@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}할 일{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #f7f6f3; --card: #ffffff; --text: #26251f; --muted: #6b6a63;
+      --line: #e2e0d8; --accent: #534ab7; --danger: #a32d2d; --done: #9c9a92;
+      --warn-bg: #fceaea; --warn-text: #791f1f; --warn-line: #f09595;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1a; --card: #262521; --text: #e8e6de; --muted: #9c9a92;
+        --line: #3a3935; --accent: #afa9ec; --danger: #f09595; --done: #6b6a63;
+        --warn-bg: #501313; --warn-text: #f7c1c1; --warn-line: #a32d2d;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px 16px; background: var(--bg); color: var(--text);
+      font: 15px/1.6 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; }
+    h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+    .card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 12px; padding: 16px; margin-bottom: 16px;
+    }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    input, select, button {
+      font: inherit; color: inherit; padding: 8px 10px;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+    }
+    input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    button { cursor: pointer; }
+    button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+    button.link {
+      background: none; border: none; padding: 2px 6px;
+      color: var(--muted); font-size: 13px; text-decoration: underline;
+    }
+    button.link.danger { color: var(--danger); }
+    .grid { display: grid; grid-template-columns: 1fr 160px; gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 120px; gap: 10px; margin-top: 10px; }
+    @media (max-width: 560px) { .grid, .grid-3 { grid-template-columns: 1fr; } }
+    .flash {
+      padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 14px;
+      background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-line);
+    }
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
+    .tab {
+      padding: 5px 11px; border-radius: 999px; font-size: 13px; text-decoration: none;
+      color: var(--muted); border: 1px solid var(--line);
+    }
+    .tab.on { background: var(--accent); color: #fff; border-color: transparent; }
+    ul.todos { list-style: none; margin: 0; padding: 0; }
+    ul.todos li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 0; border-bottom: 1px solid var(--line);
+    }
+    ul.todos li:last-child { border-bottom: none; }
+    .body { flex: 1; min-width: 0; }
+    .title { font-weight: 500; word-break: break-word; }
+    .done .title { text-decoration: line-through; color: var(--done); }
+    .meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .overdue { color: var(--danger); font-weight: 500; }
+    .chip {
+      display: inline-block; padding: 1px 7px; border-radius: 999px;
+      font-size: 11px; border: 1px solid var(--line); margin-right: 4px;
+    }
+    .empty { color: var(--muted); text-align: center; padding: 28px 0; }
+    footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% with messages = get_flashed_messages() %}
+      {% for message in messages %}<div class="flash">{{ message }}</div>{% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>
