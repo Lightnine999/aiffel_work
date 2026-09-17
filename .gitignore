@@ -1,0 +1,122 @@
+# ─────────────────────────────────────────────────────────────
+# aiffel_work 루트 .gitignore
+#
+# 이 저장소는 PUBLIC 이다. 여기에 커밋되는 모든 것은 전 세계가 볼 수 있다.
+# 하위 프로젝트(ToDoApp, blog_ggg 등)는 각자 .gitignore 를 따로 갖고 있고,
+# 이 파일은 그 위에 얹히는 저장소 전체 공통 규칙이다.
+#
+# 규칙 추가 전 확인: 이미 추적 중인 파일은 .gitignore 를 추가해도
+# 계속 추적된다. 그때는 `git rm --cached <파일>` 이 따로 필요하다.
+# ─────────────────────────────────────────────────────────────
+
+# ── 시크릿 / 자격증명 (CRITICAL — 절대 커밋 금지) ──────────────
+# 실제 값이 든 환경변수 파일. .env.example(빈 템플릿)만 예외로 허용한다.
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# 개인키 / 인증서
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.ppk
+
+# 클라우드 / API 자격증명 파일
+credentials
+credentials.json
+credentials.enc
+client_secret*.json
+service-account*.json
+service_account*.json
+token.json
+*token.json
+.netrc
+.npmrc
+.pypirc
+gha-creds-*.json
+
+# 로컬 전용 설정 (로컬 경로·개인 허용목록이 들어간다)
+.claude/settings.local.json
+*.local.json
+!package-lock.json
+secrets.*
+*.secret
+*.secrets
+
+# ── 에이전트 / 도구 세션 상태 (용량 크고 의미 없음) ─────────────
+.omc/
+.aider*
+.cursorignore
+
+# ── 실데이터 / 데이터베이스 ──────────────────────────────────
+# 실사용 DB는 개인정보가 들어갈 수 있다. 스키마는 코드로 관리한다.
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite3
+**/db/backup/
+
+# ── OS / 에디터 부산물 ──────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+.idea/
+*.swp
+*.swo
+*~
+
+# ── 파이썬 ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# ── 주피터 ────────────────────────────────────────────────
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# ── Node / 프론트엔드 ─────────────────────────────────────
+node_modules/
+.next/
+out/
+.vercel/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── 로그 / 임시 ───────────────────────────────────────────
+*.log
+logs/
+tmp/
+temp/
+.cache/
