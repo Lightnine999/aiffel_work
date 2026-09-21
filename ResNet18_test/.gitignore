@@ -1,0 +1,7 @@
+.venv/
+data/
+run.log
+__pycache__/
+nb_exec.log
+*.executed.ipynb
+.ipynb_checkpoints/

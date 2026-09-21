@@ -1,0 +1,144 @@
+{
+  "device": "mps",
+  "epochs": 5,
+  "train_size": 2000,
+  "test_size": 1000,
+  "baseline": 0.678,
+  "results": [
+    {
+      "name": "pretrained",
+      "desc": "ImageNet 사전학습 + fc 교체 후 전체 파인튜닝",
+      "lr": 0.0003,
+      "trainable_params": 11177538,
+      "final_acc": 0.993,
+      "seconds": 50.06278610229492,
+      "confusion": [
+        [
+          316,
+          6
+        ],
+        [
+          1,
+          677
+        ]
+      ],
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.11068094740062952,
+          "test_acc": 0.864
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.06325932862609625,
+          "test_acc": 0.968
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.02146566714346409,
+          "test_acc": 0.972
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.013335587585344911,
+          "test_acc": 0.982
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.0075765486862510445,
+          "test_acc": 0.993
+        }
+      ]
+    },
+    {
+      "name": "scratch",
+      "desc": "랜덤 초기화, 밑바닥부터 학습",
+      "lr": 0.001,
+      "trainable_params": 11177538,
+      "final_acc": 0.712,
+      "seconds": 45.81493306159973,
+      "confusion": [
+        [
+          99,
+          223
+        ],
+        [
+          65,
+          613
+        ]
+      ],
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.708700065612793,
+          "test_acc": 0.689
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.6067889683246612,
+          "test_acc": 0.646
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.6013269395828247,
+          "test_acc": 0.441
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.5927442307472229,
+          "test_acc": 0.707
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.5584956378936767,
+          "test_acc": 0.712
+        }
+      ]
+    },
+    {
+      "name": "linear-probe",
+      "desc": "사전학습 백본 동결, 교체한 fc만 학습",
+      "lr": 0.001,
+      "trainable_params": 1026,
+      "final_acc": 0.979,
+      "seconds": 17.6924991607666,
+      "confusion": [
+        [
+          304,
+          18
+        ],
+        [
+          3,
+          675
+        ]
+      ],
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.27899565327167514,
+          "test_acc": 0.948
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.10389300790429115,
+          "test_acc": 0.971
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.09076730811595916,
+          "test_acc": 0.974
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.07683387285470962,
+          "test_acc": 0.977
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.07750552704930305,
+          "test_acc": 0.979
+        }
+      ]
+    }
+  ]
+}

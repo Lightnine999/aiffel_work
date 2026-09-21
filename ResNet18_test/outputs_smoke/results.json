@@ -1,0 +1,78 @@
+{
+  "device": "mps",
+  "args": {
+    "epochs": 1,
+    "train_size": 64,
+    "test_size": 64,
+    "batch_size": 16,
+    "img_size": 224,
+    "workers": 2,
+    "seed": 42,
+    "lr_pretrained": 0.0003,
+    "lr_scratch": 0.001,
+    "lr_linear": 0.001,
+    "with_linear_probe": false,
+    "data_root": "./data",
+    "out_dir": "./outputs_smoke"
+  },
+  "class_names": [
+    "Cat",
+    "Dog"
+  ],
+  "train_size": 64,
+  "test_size": 64,
+  "results": [
+    {
+      "name": "pretrained",
+      "desc": "ImageNet 사전학습 가중치 로드 + fc 교체 후 전체 파인튜닝",
+      "lr": 0.0003,
+      "trainable_params": 11177538,
+      "final_acc": 0.96875,
+      "best_acc": 0.96875,
+      "seconds": 7.009819984436035,
+      "confusion": [
+        [
+          21,
+          0
+        ],
+        [
+          2,
+          41
+        ]
+      ],
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.4995565079152584,
+          "test_acc": 0.96875
+        }
+      ]
+    },
+    {
+      "name": "scratch",
+      "desc": "가중치 랜덤 초기화, 밑바닥부터 학습",
+      "lr": 0.001,
+      "trainable_params": 11177538,
+      "final_acc": 0.671875,
+      "best_acc": 0.671875,
+      "seconds": 0.33878087997436523,
+      "confusion": [
+        [
+          0,
+          21
+        ],
+        [
+          0,
+          43
+        ]
+      ],
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 1.178306594491005,
+          "test_acc": 0.671875
+        }
+      ]
+    }
+  ]
+}
