@@ -6,15 +6,21 @@
   <title>{% block title %}할 일{% endblock %}</title>
   <style>
     :root {
-      --bg: #f7f6f3; --card: #ffffff; --text: #26251f; --muted: #6b6a63;
-      --line: #e2e0d8; --accent: #534ab7; --danger: #a32d2d; --done: #9c9a92;
-      --warn-bg: #fceaea; --warn-text: #791f1f; --warn-line: #f09595;
+      --bg: #f3f5ee; --card: #ffffff; --text: #22261f; --muted: #6c7364;
+      --line: #dde1d2; --accent: #2f6f62; --accent-tint: #e3f0eb; --accent-text: #1f5347;
+      --danger: #b23a3a; --done: #7f9678;
+      --high: #c15b3d; --high-tint: #f7e7e0;
+      --low: #5b8a72; --low-tint: #e6efe7;
+      --warn-bg: #fbeae7; --warn-text: #7a2a1e; --warn-line: #e3b3a6;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #1c1c1a; --card: #262521; --text: #e8e6de; --muted: #9c9a92;
-        --line: #3a3935; --accent: #afa9ec; --danger: #f09595; --done: #6b6a63;
-        --warn-bg: #501313; --warn-text: #f7c1c1; --warn-line: #a32d2d;
+        --bg: #161b16; --card: #1e2420; --text: #e8ece2; --muted: #93998a;
+        --line: #333a30; --accent: #6fbfa9; --accent-tint: #1f3530; --accent-text: #9fe0cb;
+        --danger: #e28080; --done: #8fa089;
+        --high: #e08a66; --high-tint: #3a2620;
+        --low: #8fc29c; --low-tint: #223a28;
+        --warn-bg: #3a2420; --warn-text: #f3c7bc; --warn-line: #7a3a2e;
       }
     }
     * { box-sizing: border-box; }
@@ -23,12 +29,14 @@
       font: 15px/1.6 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
     }
     .wrap { max-width: 780px; margin: 0 auto; }
-    h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+    h1 { font-size: 23px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 4px; }
     .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
     .card {
       background: var(--card); border: 1px solid var(--line);
       border-radius: 12px; padding: 16px; margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(20, 25, 15, 0.05);
     }
+    .card.today-done { background: var(--low-tint); border-color: var(--low); }
     label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
     input, select, button {
       font: inherit; color: inherit; padding: 8px 10px;
@@ -58,17 +66,25 @@
     ul.todos { list-style: none; margin: 0; padding: 0; }
     ul.todos li {
       display: flex; align-items: flex-start; gap: 10px;
-      padding: 12px 0; border-bottom: 1px solid var(--line);
+      padding: 12px 0 12px 10px; border-bottom: 1px solid var(--line);
+      border-left: 3px solid transparent;
     }
     ul.todos li:last-child { border-bottom: none; }
+    ul.todos li.priority-1 { border-left-color: var(--high); }
+    ul.todos li.priority-3 { border-left-color: var(--low); }
+    .toggle {
+      font-size: 17px; line-height: 1; width: 24px; text-align: center;
+      color: var(--muted); border-color: transparent; background: none; padding: 3px 0;
+    }
+    .done .toggle { color: var(--low); }
     .body { flex: 1; min-width: 0; }
     .title { font-weight: 500; word-break: break-word; }
     .done .title { text-decoration: line-through; color: var(--done); }
     .meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
     .overdue { color: var(--danger); font-weight: 500; }
     .chip {
-      display: inline-block; padding: 1px 7px; border-radius: 999px;
-      font-size: 11px; border: 1px solid var(--line); margin-right: 4px;
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 11px; background: var(--accent-tint); color: var(--accent-text); margin-right: 4px;
     }
     .empty { color: var(--muted); text-align: center; padding: 28px 0; }
     footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 24px; }

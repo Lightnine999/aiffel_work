@@ -1,0 +1,20 @@
+[project]
+name = "paddleocr-vl-test"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "kwonkwanggoo", email = "285868619+Lightnine999@users.noreply.github.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "paddleocr[doc-parser]>=3.7.0",
+    "paddlepaddle>=3.3.1",
+]
+
+[project.scripts]
+paddleocr-vl-test = "paddleocr_vl_test:main"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"

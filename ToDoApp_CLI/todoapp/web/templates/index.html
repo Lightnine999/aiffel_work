@@ -16,11 +16,11 @@
 </p>
 
 {% if today_done %}
-<div class="card">
+<div class="card today-done">
   <p class="sub">오늘 완료한 일</p>
   <ul class="todos">
     {% for todo in today_done %}
-      <li class="done"><div class="body"><div class="title">{{ todo.title }}</div></div></li>
+      <li class="done"><span class="toggle">✓</span><div class="body"><div class="title">{{ todo.title }}</div></div></li>
     {% endfor %}
   </ul>
 </div>
@@ -95,11 +95,11 @@
   {% if todos %}
     <ul class="todos">
       {% for todo in todos %}
-        <li class="{% if todo.is_done %}done{% endif %}">
+        <li class="{% if todo.is_done %}done{% endif %} priority-{{ todo.priority }}">
           <form method="post" action="{{ url_for('.toggle', todo_id=todo.id) }}">
             {{ filter_fields() }}
-            <button class="link" type="submit" title="완료 표시 전환">
-              {% if todo.is_done %}[x]{% else %}[ ]{% endif %}
+            <button class="toggle" type="submit" title="완료 표시 전환">
+              {% if todo.is_done %}✓{% else %}○{% endif %}
             </button>
           </form>
           <div class="body">
