@@ -3,7 +3,7 @@
 > 다음 세션에서 이 문서만 읽고 바로 이어서 작업할 수 있게 정리한 문서다.
 > 작성 2026-09-07 · `main` 기준 `7858199`
 > **갱신 2026-09-07** · 작업 폴더가 `ToDoApp_CLI`로 갈라졌다(§0)
-> · CLI `summary` 명령 추가(§13) · `list --priority` 필터 추가(§14)
+> · CLI `summary` 명령 추가(§13) · `list --priority` 필터 추가(§14) · MCP 서버 추가(§15)
 > 이 문서의 모든 명령과 수치는 작성·갱신 시점에 실제로 실행해 확인했다.
 
 ---
@@ -516,3 +516,38 @@ ID  상태  제목                 마감일      우선  태그
 ### 남은 것
 
 웹에는 아직 없다(§11). 서비스 계층은 이미 받으므로 `routes.py`만 손대면 된다.
+
+---
+
+## 15. MCP 서버 (2026-09-07 추가)
+
+같은 서비스 계층을 모델이 직접 부를 수 있게 stdio JSON-RPC로 노출한 진입점이다.
+`cli.py`와 형제 관계다 — 유스케이스는 `service.py` 하나를 공유하고, 출력 형식만 다르다.
+
+```bash
+python3 mcp_todo.py          # stdio 서버. 사람이 직접 쓰는 용도가 아니다
+```
+
+| 파일 | 내용 |
+|---|---|
+| `todoapp/mcp_server.py` | 도구 4종 + JSON-RPC 처리 (의존성 없음, 표준 라이브러리만) |
+| `mcp_todo.py` | 진입점 (`todo.py`와 같은 위치) |
+| `../.mcp.json` | Claude Code 등록 (프로젝트 스코프, `STORAGE=sqlite`) |
+| `tests/test_mcp_server.py` | 15개 |
+
+도구: `list_todos` · `today_summary` · `add_todo` · `complete_todo`
+
+### 알아둘 것 3가지
+
+1. **MCP SDK를 쓰지 않았다.** MCP는 stdio에 줄 단위 JSON-RPC 2.0을 주고받는 규약일
+   뿐이라 표준 라이브러리로 충분하다. `requirements.txt`를 늘리지 않았다.
+2. **알림(id 없는 요청)에 응답하면 안 된다.** `notifications/initialized`에 응답을
+   보내면 클라이언트가 프로토콜 위반으로 본다. `handle()`이 `None`을 준다.
+3. **도구 실패는 JSON-RPC 오류가 아니라 `isError: true`로 내린다.** 프로토콜 오류로
+   올리면 클라이언트가 삼켜서 모델이 이유를 못 본다. `isError`면 모델이 읽고 스스로
+   고쳐 다시 부를 수 있다.
+
+### 마감일 해석은 CLI 것을 재사용한다
+
+`_resolve_due()`가 `cli.resolve_due_input()`을 부른다. '오늘·내일·+7d' 규칙이 두 벌로
+갈라지면 같은 앱에서 입력 규칙이 달라진다.

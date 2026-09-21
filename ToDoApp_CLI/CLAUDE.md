@@ -17,6 +17,7 @@ CLI와 웹 두 프론트가 `todoapp/service.py` 하나를 공유한다.
 
 그 밖에: `undone` `show` `rm` `edit` `tags` `login` `signup` `logout` `whoami` `reset-password`
 웹은 `python3 app.py` → http://localhost:5001
+MCP 서버는 `python3 mcp_todo.py` (stdio JSON-RPC, 도구 4종). 등록은 루트 `.mcp.json`.
 
 로그인 없이 둘러볼 때: `STORAGE=sqlite python3 todo.py list`
 
