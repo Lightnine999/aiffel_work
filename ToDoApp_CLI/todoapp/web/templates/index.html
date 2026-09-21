@@ -4,14 +4,27 @@
   <input type="hidden" name="scope" value="{{ scope }}">
   <input type="hidden" name="tag" value="{{ active_tag }}">
   <input type="hidden" name="q" value="{{ query }}">
+  <input type="hidden" name="priority" value="{{ active_priority }}">
 {% endmacro %}
 
 {% block content %}
 <h1>할 일</h1>
 <p class="sub">
   전체 {{ summary.total }} · 미완료 {{ summary.active }} ·
-  오늘까지 {{ summary.today }} · 기한 지남 {{ summary.overdue }}
+  오늘까지 {{ summary.today }} · 기한 지남 {{ summary.overdue }} ·
+  오늘 완료 {{ today_done|length }}건
 </p>
+
+{% if today_done %}
+<div class="card">
+  <p class="sub">오늘 완료한 일</p>
+  <ul class="todos">
+    {% for todo in today_done %}
+      <li class="done"><div class="body"><div class="title">{{ todo.title }}</div></div></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 
 <div class="card">
   <form method="post" action="{{ url_for('.create') }}">
@@ -52,7 +65,7 @@
   <div class="tabs">
     {% for name in scopes %}
       <a class="tab {% if name == scope %}on{% endif %}"
-         href="{{ url_for('.index', scope=name, tag=active_tag or None, q=query or None) }}">
+         href="{{ url_for('.index', scope=name, tag=active_tag or None, q=query or None, priority=active_priority or None) }}">
         {{ scope_labels[name] }}
       </a>
     {% endfor %}
@@ -67,8 +80,14 @@
         <option value="{{ tag.name }}" {% if tag.name == active_tag %}selected{% endif %}>{{ tag.name }}</option>
       {% endfor %}
     </select>
+    <select name="priority">
+      <option value="">우선순위 전체</option>
+      {% for value, label in priority_labels.items() %}
+        <option value="{{ value }}" {% if value|string == active_priority %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
     <button type="submit">찾기</button>
-    {% if active_tag or query %}
+    {% if active_tag or query or active_priority %}
       <a class="tab" href="{{ url_for('.index', scope=scope) }}">초기화</a>
     {% endif %}
   </form>

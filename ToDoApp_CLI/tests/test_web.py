@@ -99,6 +99,54 @@ class TestIndex:
         assert "&lt;script&gt;" in body
 
 
+def _set_completed_at(db_path, todo_id: int, value: str | None) -> None:
+    """트리거가 넣은 '지금'을 원하는 시각으로 옮긴다 (테스트 셋업 전용)."""
+    c = connect(db_path)
+    c.execute("UPDATE todos SET completed_at = ? WHERE id = ?", (value, todo_id))
+    c.commit()
+    c.close()
+
+
+class TestPriorityFilter:
+    def test_우선순위로_거른다(self, client, seeder):
+        seeder.add("중요한 일", priority="high")
+        seeder.add("사소한 일", priority="low")
+        body = client.get("/?priority=high").get_data(as_text=True)
+        assert "중요한 일" in body and "사소한 일" not in body
+
+    def test_잘못된_값은_400이다(self, client):
+        assert client.get("/?priority=이상한값").status_code == 400
+
+    def test_다른_필터와_조합된다(self, client, seeder):
+        seeder.add("중요 공부", priority="high", tags="공부")
+        seeder.add("중요 집안일", priority="high", tags="집안일")
+        body = client.get("/?priority=high&tag=공부").get_data(as_text=True)
+        assert "중요 공부" in body and "중요 집안일" not in body
+
+
+class TestTodaySummary:
+    def test_오늘_완료한_일이_보인다(self, client, seeder, db_path):
+        todo = seeder.add("발표 준비")
+        seeder.complete(todo.id)
+        _set_completed_at(db_path, todo.id, f"{FIXED_TODAY} 09:10:00")
+        body = client.get("/").get_data(as_text=True)
+        assert "오늘 완료 1건" in body
+        assert "발표 준비" in body
+
+    def test_완료한_것이_없으면_0건(self, client):
+        assert "오늘 완료 0건" in client.get("/").get_data(as_text=True)
+
+    def test_다른_날_완료한_것은_빠진다(self, client, seeder, db_path):
+        # "어제 끝낸 일"은 scope=all 목록 자체에는 여전히 나온다.
+        # "오늘 완료" 카드에만 없어야 한다 — 카드는 0건이면 아예 렌더링되지 않는다.
+        todo = seeder.add("어제 끝낸 일")
+        seeder.complete(todo.id)
+        _set_completed_at(db_path, todo.id, "2026-09-03 22:00:00")
+        body = client.get("/").get_data(as_text=True)
+        assert "오늘 완료 0건" in body
+        assert "오늘 완료한 일" not in body
+
+
 class TestCreate:
     def test_추가하면_리다이렉트한다(self, client, seeder):
         response = client.post("/todos", data={"title": "장보기"})
@@ -138,9 +186,16 @@ class TestCreate:
 
     def test_추가_후_필터가_유지된다(self, client):
         response = client.post(
-            "/todos", data={"title": "장보기", "scope": "active", "tag": "공부"}
+            "/todos",
+            data={
+                "title": "장보기",
+                "scope": "active",
+                "tag": "공부",
+                "priority": "high",
+            },
         )
         assert "scope=active" in response.headers["Location"]
+        assert "priority=high" in response.headers["Location"]
 
     def test_새로고침_중복_추가를_막기_위해_리다이렉트한다(self, client):
         # PRG 패턴: POST 응답은 200이 아니라 302여야 한다

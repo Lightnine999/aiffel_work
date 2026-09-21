@@ -153,7 +153,7 @@ def _current_filters() -> dict[str, str]:
     """지금 보고 있는 필터. POST 후 같은 화면으로 돌아가기 위해 쓴다."""
     source = request.form if request.method == "POST" else request.args
     filters: dict[str, str] = {}
-    for key in ("scope", "tag", "q"):
+    for key in ("scope", "tag", "q", "priority"):
         value = (source.get(key) or "").strip()
         if value:
             filters[key] = value
@@ -167,19 +167,29 @@ def index():
     if scope not in SCOPES:
         abort(400, description=f"알 수 없는 범위입니다: {scope}")
     service = _service()
-    todos = service.list(scope, tag=filters.get("tag"), keyword=filters.get("q"))
+    try:
+        todos = service.list(
+            scope,
+            tag=filters.get("tag"),
+            keyword=filters.get("q"),
+            priority=filters.get("priority"),
+        )
+    except ValidationError as exc:
+        abort(400, description=str(exc))
     return render_template(
         "index.html",
         todos=todos,
         all_tags=service.all_tags(),
         summary=service.summary(),
         today=service.today(),
+        today_done=service.completed_on(),
         scope=scope,
         scopes=SCOPES,
         scope_labels=SCOPE_LABELS,
         priority_labels=PRIORITY_LABELS,
         active_tag=filters.get("tag", ""),
         query=filters.get("q", ""),
+        active_priority=filters.get("priority", ""),
         account=_account_label(),
     )
 
