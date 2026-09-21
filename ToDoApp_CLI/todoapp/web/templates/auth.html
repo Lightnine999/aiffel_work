@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<p class="sub">
+  {% if mode == 'login' %}
+    클라우드(Supabase)에 저장하려면 로그인이 필요합니다.
+  {% else %}
+    계정을 만들면 내 할 일만 나에게 보입니다.
+  {% endif %}
+</p>
+
+<div class="card">
+  <form method="post" action="{{ url_for('.' + mode) }}">
+    <p>
+      <label for="email">이메일</label>
+      <input id="email" name="email" type="email" required autofocus
+             value="{{ email or '' }}" style="width:100%">
+    </p>
+    <p>
+      <label for="password">비밀번호{% if mode == 'signup' %} (6자 이상){% endif %}</label>
+      <input id="password" name="password" type="password" required
+             autocomplete="{% if mode == 'login' %}current-password{% else %}new-password{% endif %}"
+             style="width:100%">
+    </p>
+    <p style="margin:16px 0 0">
+      <button class="primary" type="submit">{{ title }}</button>
+      {% if mode == 'login' %}
+        <a class="tab" href="{{ url_for('.signup') }}" style="margin-left:8px">계정 만들기</a>
+        <a class="tab" href="{{ url_for('.reset') }}" style="margin-left:4px">비밀번호를 잊으셨나요?</a>
+      {% else %}
+        <a class="tab" href="{{ url_for('.login') }}" style="margin-left:8px">로그인으로</a>
+      {% endif %}
+    </p>
+  </form>
+</div>
+
+<footer>
+  비밀번호는 Supabase가 관리합니다. 이 앱은 저장하지 않습니다.
+</footer>
+{% endblock %}
