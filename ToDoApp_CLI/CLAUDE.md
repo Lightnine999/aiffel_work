@@ -31,8 +31,8 @@ MCP 서버는 `python3 mcp_todo.py` (stdio JSON-RPC, 도구 4종). 등록은 루
   `tests/test_supabase_store.py::TestLayerBoundary`가 검사한다.
 - **테스트를 먼저 쓴다** (RED → GREEN). 완료 주장 전에 반드시 실행한다.
   ```bash
-  python3 -m pytest tests/ -q                                              # 449개
-  python3 -m pytest tests/ -q --ignore=tests/test_supabase_integration.py  # 425개 (네트워크 없이)
+  python3 -m pytest tests/ -q                                              # 462개
+  python3 -m pytest tests/ -q --ignore=tests/test_supabase_integration.py  # 456개 (네트워크 없이)
   ```
 - 완료시각(`completed_at`)은 **DB 트리거가 채운다.** 앱에서 따로 쓰지 않는다.
 - 날짜·시간 계산은 암산하지 않는다. `date` 명령이나 `python3 -c "from datetime ..."`을 쓴다.
