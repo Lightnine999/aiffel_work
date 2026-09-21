@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}메일을 보냈습니다{% endblock %}
+
+{% block content %}
+<h1>메일을 보냈습니다</h1>
+<p class="sub">{{ email }} 으로 비밀번호 재설정 링크를 보냈습니다.</p>
+
+<div class="card">
+  <ol style="margin:0; padding-left:20px; line-height:2">
+    <li>메일함을 여세요. <strong>스팸함도 함께 확인하세요.</strong></li>
+    <li>제목이 <strong>"Reset your password"</strong> 인 메일을 엽니다.</li>
+    <li><strong>Reset password</strong> 링크를 누르면 이 앱으로 돌아옵니다.</li>
+    <li>새 비밀번호를 정하면 끝입니다.</li>
+  </ol>
+  <p class="meta" style="margin-top:16px">
+    링크는 <strong>한 번만</strong> 쓸 수 있고 일정 시간이 지나면 만료됩니다.
+    만료됐다면 다시 요청하세요.
+  </p>
+  <p style="margin:16px 0 0">
+    <a class="tab" href="{{ url_for('.reset') }}">다시 보내기</a>
+    <a class="tab" href="{{ url_for('.login') }}" style="margin-left:4px">로그인으로</a>
+  </p>
+</div>
+
+<footer>무료 플랜은 시간당 발송 수에 제한이 있습니다. 메일이 안 오면 잠시 후 다시 시도하세요.</footer>
+{% endblock %}

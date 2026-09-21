@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "todoapp": {
+      "command": "python3",
+      "args": ["mcp_todo.py"],
+      "cwd": "ToDoApp_CLI",
+      "env": {
+        "STORAGE": "sqlite"
+      }
+    }
+  }
+}

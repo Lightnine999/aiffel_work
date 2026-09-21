@@ -1,0 +1,9 @@
+.env
+db/*.db
+db/*.db-journal
+db/*.db-wal
+__pycache__/
+.DS_Store
+.omc/
+db/backup/
+.pytest_cache/

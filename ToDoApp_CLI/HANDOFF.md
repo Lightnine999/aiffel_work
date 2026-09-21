@@ -2,10 +2,31 @@
 
 > 다음 세션에서 이 문서만 읽고 바로 이어서 작업할 수 있게 정리한 문서다.
 > 작성 2026-09-07 · `main` 기준 `7858199`
-> 이 문서의 모든 명령과 수치는 작성 시점에 실제로 실행해 확인했다.
+> **갱신 2026-09-07** · 작업 폴더가 `ToDoApp_CLI`로 갈라졌다(§0)
+> · CLI `summary` 명령 추가(§13) · `list --priority` 필터 추가(§14) · MCP 서버 추가(§15)
+> **갱신 2026-09-21** · 웹에도 오늘 완료 요약·우선순위 필터 추가(§16) · git 커밋·push 완료
+> 이 문서의 모든 명령과 수치는 작성·갱신 시점에 실제로 실행해 확인했다.
 
-> ⚠️ **2026-09-07 이후 작업은 `../ToDoApp_CLI/`에서 한다. 이 폴더는 그 시점에 멈췄다.**
-> 최신 내용은 `ToDoApp_CLI/HANDOFF.md`를 볼 것 (CLI `summary` 명령 추가 · 테스트 449개).
+---
+
+## 0. 지금 어느 폴더인가 (먼저 읽기)
+
+`aiffel_work` 아래에 Todo 폴더가 **두 개**다. 이 문서는 `ToDoApp_CLI` 쪽이다.
+
+| 폴더 | 상태 |
+|---|---|
+| `ToDoApp/` | 2026-09-07 이전 상태로 **멈춰 있다.** git에 커밋된 원본 (`dbec7f8`) |
+| **`ToDoApp_CLI/`** | **여기서 작업한다.** 위를 rsync로 통째 복사한 사본 + `summary` · `--priority` |
+
+복사에 포함된 것: `.env` · `db/todo.db` · `tests/` 전부.
+제외한 것: `.omc` · `.pytest_cache` · `__pycache__` · `.DS_Store`.
+
+> **주의 3가지**
+> - `ToDoApp_CLI/`는 아직 **git untracked**다. 커밋하지 않으면 이력에 남지 않는다.
+>   `.env`가 들어 있으니 커밋 전에 `.gitignore`를 반드시 확인할 것.
+> - 두 폴더가 갈라졌으므로 **어느 쪽을 고치는지 매번 확인**한다.
+>   `summary`와 `--priority`는 사본에만 있다.
+> - 두 폴더의 `db/todo.db`는 **서로 다른 파일**이다 (복사 시점엔 둘 다 0건).
 
 ---
 
@@ -15,12 +36,16 @@
 Supabase(클라우드 Postgres)로 이행했다. 저장소를 `.env` 한 줄로 갈아끼울 수 있고,
 클라우드 쪽은 RLS로 "내 행만" 보이게 DB가 강제한다. CLI와 웹 두 프론트가 같은 코어를 쓴다.
 
+마지막 세션에서 터미널 쪽에 두 가지를 얹었다 — `summary`(오늘 완료 요약, §13)와
+`list --priority`(우선순위 필터, §14). 앞은 서비스 계층에서 거르고, 뒤는 두 저장소의
+SQL·PostgREST 양쪽에 넣었다. 왜 다르게 했는지는 각 절에 적어뒀다.
+
 | 항목 | 값 |
 |---|---|
-| 상태 | **완료** · `main` 병합됨 (PR #1, #2) |
-| 커밋 | 19개 |
-| 코드 | 2,660줄 (`todoapp/`) |
-| 테스트 | **434개 통과** (실연결 통합 23개 포함) |
+| 상태 | 기능 **완료** · `ToDoApp/`은 `main` 병합됨 (PR #1, #2) |
+| 커밋 | 19개 (`ToDoApp_CLI/`의 `summary`·`--priority` 작업은 **아직 미커밋**) |
+| 코드 | 2,738줄 (`todoapp/`) — `summary` +51줄 · `--priority` +27줄 |
+| 테스트 | **466개 통과** (실연결 통합 25개 포함) |
 | 브랜치 | `main` 하나 (작업 브랜치 삭제 완료) |
 
 ---
@@ -28,11 +53,11 @@ Supabase(클라우드 Postgres)로 이행했다. 저장소를 `.env` 한 줄로 
 ## 2. 지금 바로 실행하기
 
 ```bash
-cd /Users/kwonkwanggoo/aiffel_work/ToDoApp
+cd /Users/kwonkwanggoo/aiffel_work/ToDoApp_CLI
 
 # 테스트 — 아무 설정 없이 바로 된다
-python3 -m pytest tests/ -q                                              # 전체 434개
-python3 -m pytest tests/ -q --ignore=tests/test_supabase_integration.py  # 네트워크 없이 411개
+python3 -m pytest tests/ -q                                              # 전체 466개
+python3 -m pytest tests/ -q --ignore=tests/test_supabase_integration.py  # 네트워크 없이 441개
 
 # 설정·접속 확인 (키 값은 출력되지 않음)
 python3 scripts/check_env.py --connect
@@ -43,6 +68,10 @@ python3 app.py                      # → http://localhost:5001
 # 터미널
 python3 todo.py login               # STORAGE=supabase 면 먼저 로그인
 python3 todo.py list
+python3 todo.py summary             # 오늘 완료한 일 + 건수
+
+# 로그인 없이 둘러보기 (로컬 SQLite)
+STORAGE=sqlite python3 todo.py summary
 ```
 
 > **`todo.py list`가 "로그인이 필요합니다"로 끝나면 정상이다.** 현재 `.env`가
@@ -73,7 +102,7 @@ SUPABASE_ANON_KEY=<sb_publishable_… 설정됨>
 
 ```
 todoapp/
-├── models.py            184줄  값 객체 + 입력 검증        ← 저장소를 모른다
+├── models.py            208줄  값 객체 + 입력 검증        ← 저장소를 모른다
 ├── keycheck.py           68줄  Supabase 키 종류 판정
 ├── config.py            124줄  .env 로딩 + service_role 가드
 ├── session.py            69줄  CLI 토큰 보관 (0600)
@@ -81,14 +110,14 @@ todoapp/
 ├── auth_flow.py         140줄  로그인·가입·비밀번호 찾기 흐름
 │
 ├── database.py           63줄  SQLite 커넥션·PRAGMA
-├── repository.py        329줄  SQLite SQL 전담
+├── repository.py        337줄  SQLite SQL 전담
 ├── stores/
 │   ├── __init__.py      134줄  Store 프로토콜 + build_store()   ← 유일한 분기점
 │   ├── sqlite_store.py   60줄  로컬 파일
-│   └── supabase_store.py 326줄 클라우드 Postgres
+│   └── supabase_store.py 330줄 클라우드 Postgres
 │
-├── service.py           183줄  유스케이스·트랜잭션 경계      ← CLI와 웹이 공유
-├── cli.py               464줄  터미널 화면                  ← 저장소를 모른다
+├── service.py           201줄  유스케이스·트랜잭션 경계      ← CLI와 웹이 공유
+├── cli.py               488줄  터미널 화면                  ← 저장소를 모른다
 └── web/
     ├── __init__.py      135줄  Flask 팩토리 + 세션
     ├── routes.py        230줄  라우트 (PRG 패턴)
@@ -116,7 +145,9 @@ todoapp/
 | 태그 (N:M) | ✅ | ✅ |
 | 제목·메모 검색 | ✅ | ✅ |
 | 우선순위 (높음/보통/낮음) | ✅ | ✅ |
+| 우선순위 **필터** (`--priority`) | ✅ | ✅ |
 | 내용 수정 | ✅ | ❌ |
+| 오늘 완료 요약 (`summary`) | ✅ | ✅ |
 | 로그인 / 회원가입 / 로그아웃 | ✅ | ✅ |
 | 비밀번호 찾기 | ✅ | ✅ |
 
@@ -124,8 +155,9 @@ todoapp/
 
 ```bash
 python3 todo.py add "장보기" --due 내일 --tag 집안일 --priority high --notes "우유"
-python3 todo.py list [--today|--overdue|--active|--done] [--tag X] [--search Y]
+python3 todo.py list [--today|--overdue|--active|--done] [--tag X] [--search Y] [--priority high]
 python3 todo.py done 3 / undone 3 / show 3 / rm 3 / edit 3 --due 없음
+python3 todo.py summary             # 오늘 완료한 일 표 + '오늘 완료 N건' + 전체 집계
 python3 todo.py tags
 python3 todo.py signup / login / logout / whoami / reset-password
 ```
@@ -187,6 +219,7 @@ todos ──< todo_tags >── tags
 | `transaction()` | 실제 롤백 | **no-op** (원자성은 RPC가 담당) |
 | 불리언 | `INTEGER 0/1` | 진짜 `boolean` |
 | 날짜 | `TEXT 'YYYY-MM-DD'` | 진짜 `date` |
+| **완료시각** | `'2026-09-07 16:33:12'` 시간대 없음 · **로컬시각** | `'2026-09-07T07:59:27.518839+00:00'` · **UTC** |
 | LIKE 와일드카드 | `%` `_` | **`*`** · `or_()`는 **쉼표로 조건을 나눔** |
 | `is not null` | `IS NOT NULL` | **`not_.is_(col,"null")`** (`is_(col,"not.null")`은 PGRST100 오류) |
 | 로그인 | 없음 | 필요 |
@@ -226,7 +259,7 @@ todos ──< todo_tags >── tags
 
 ---
 
-## 8. 이 프로젝트를 만지기 전에 알아야 할 함정 6가지
+## 8. 이 프로젝트를 만지기 전에 알아야 할 함정 7가지
 
 실제로 부딪혀서 고친 것들이다. 같은 함정에 다시 빠지지 않게 적어둔다.
 
@@ -269,6 +302,22 @@ Flask 기본 포트가 5000이라 정면 충돌한다. **그래서 이 앱은 50
 포트를 바꾸려면 `.env`의 `PORT`와 **Supabase의 Site URL·Redirect URLs를 함께** 바꿔야 한다
 (비밀번호 찾기 링크가 그 주소로 돌아온다).
 
+### ⑦ 완료시각은 저장소마다 시간대가 다르다 — 앞 10글자를 자르면 안 된다
+
+`completed_at`을 문자열로 자르면 클라우드 쪽이 **하루 어긋난다.**
+
+```
+SQLite   '2026-09-07 16:33:12'              시간대 없음 · 이미 로컬시각
+Postgres '2026-09-07T07:59:27.518839+00:00'  UTC   ← 실연결로 확인한 실제 값
+```
+
+UTC 23시 30분은 서울에서 이미 **다음 날** 아침 8시 30분이다. 그래서
+`models.local_date_of()`가 파싱 후 로컬 시간대로 옮긴 다음 날짜를 뽑는다.
+
+**이 경계는 실연결 테스트로도 못 잡는다.** 낮 시간대(KST 09시~24시)에는 UTC 날짜와
+로컬 날짜가 같아서 잘못된 구현도 통과한다. `TZ=Asia/Seoul`을 고정하고 UTC 23:30을
+직접 넣는 유닛 테스트(`test_cli_summary.py::TestLocalDateOf`)만 잡아낸다.
+
 ---
 
 ## 9. 테스트 지도
@@ -291,8 +340,10 @@ Flask 기본 포트가 5000이라 정면 충돌한다. **그래서 이 앱은 50
 | `test_cli_auth.py` | 14 | CLI 로그인·저장소 선택 |
 | `test_web_auth.py` | 16 | 웹 로그인 가드·세션 |
 | `test_password_reset.py` | 41 | 비밀번호 찾기 (양쪽 경로) |
-| `test_supabase_integration.py` | 23 | **실연결** CRUD + RLS 격리 + anon 차단 |
-| **합계** | **434** | |
+| `test_cli_summary.py` | 14 | `summary` — 시간대 변환·오늘 완료 필터·출력 |
+| `test_priority_filter.py` | 16 | `--priority` — 4계층 (SQLite·PostgREST·서비스·CLI) |
+| `test_supabase_integration.py` | 25 | **실연결** CRUD + RLS 격리 + anon 차단 + 완료시각 + 우선순위 |
+| **합계** | **466** | |
 
 ### 테스트 종류마다 잡는 버그가 다르다
 
@@ -303,7 +354,7 @@ Flask 기본 포트가 5000이라 정면 충돌한다. **그래서 이 앱은 50
 | 직접 실행 | argparse·한글 정렬·눈에 보이는 것 (⑤) | 자동화 안 됨 |
 
 > `test_supabase_integration.py`는 `.env`에 키가 없으면 **통째로 건너뛴다.**
-> 다른 환경에서 받아도 나머지 411개는 그대로 돈다.
+> 다른 환경에서 받아도 나머지 441개는 그대로 돈다.
 
 ---
 
@@ -328,6 +379,9 @@ Flask 기본 포트가 5000이라 정면 충돌한다. **그래서 이 앱은 50
 
 ### 해야 할 것
 
+- [x] **`ToDoApp_CLI/`를 git에 커밋** — `.env`·`db/*.db`는 `.gitignore`로 제외됨을
+      확인 후 커밋·push 완료 (2026-09-21, `0123dda`)
+
 - [ ] **Supabase `tasks` 표 정리** — 이 앱과 무관한 이전 실험 흔적.
       안에 할 일 1건("각 부서들 분류 후에 업무 분담")이 있어 **확인 후** 지우기로 보류했다.
       RLS가 걸려 있어 새는 데이터는 아니다.
@@ -337,6 +391,12 @@ Flask 기본 포트가 5000이라 정면 충돌한다. **그래서 이 앱은 50
       ```
 
 ### 해도 좋은 것
+
+- [ ] **`summary --date 2026-09-06`** — `service.completed_on(day)`는 이미 날짜를 받는다.
+      CLI 플래그만 2줄 붙이면 된다 (요청 범위가 4개 명령이어서 일부러 안 붙였다)
+- [x] **웹에도 오늘 완료 요약** — `completed_on()`을 그대로 부름 (§16, 2026-09-21)
+- [x] **웹에도 우선순위 필터** — `service.list(priority=…)` 연결 (§16, 2026-09-21)
+- [ ] **`ToDoApp/`에 `summary` 역이식** — 두 폴더를 합칠 생각이면
 
 - [ ] **웹에 수정(edit) 화면** — CLI에는 있는데 웹에는 없다
 - [ ] **커스텀 SMTP** (Resend 등 무료 티어) — 붙이면 팀원 아닌 사람에게도 메일이 가고
@@ -351,19 +411,176 @@ Flask 기본 포트가 5000이라 정면 충돌한다. **그래서 이 앱은 50
 - ❌ `app.py`의 host를 `0.0.0.0`으로 바꾸기 (CSRF 없음)
 - ❌ 포트를 5000으로 되돌리기 (AirPlay 충돌)
 - ❌ 한쪽 저장소만 고치기 (§6 차이표 확인)
+- ❌ `completed_at`을 `[:10]`으로 잘라 날짜 비교하기 (§8 ⑦ — 클라우드에서 하루 어긋난다)
+- ❌ `ToDoApp/`과 `ToDoApp_CLI/`를 번갈아 고치기 (§0 — 어느 쪽인지 정하고 시작할 것)
 
 ---
 
 ## 12. 다음 세션 시작 문구 예시
 
 ```
-ToDoApp/HANDOFF.md 를 읽고 현재 상태를 파악해줘.
+ToDoApp_CLI/HANDOFF.md 를 읽고 현재 상태를 파악해줘.
 그리고 [하고 싶은 작업]을 진행하자.
 ```
 
 작업 전에 이것만 돌려보면 상태가 확인된다.
 
 ```bash
-cd /Users/kwonkwanggoo/aiffel_work/ToDoApp && \
+cd /Users/kwonkwanggoo/aiffel_work/ToDoApp_CLI && \
   python3 -m pytest tests/ -q && python3 scripts/check_env.py --connect
 ```
+
+---
+
+## 13. `summary` 명령 (2026-09-07 추가)
+
+터미널에서 "오늘 뭘 끝냈나"를 보는 명령이다. 기존 앱을 갈아엎지 않는 것이 조건이어서
+**저장소·SQL·스키마는 한 줄도 건드리지 않았다.**
+
+```
+$ STORAGE=sqlite python3 todo.py summary
+오늘(2026-09-07) 완료한 일
+ID  상태  제목       마감일      우선  태그
+---------------------------------------------
+2   [x]   발표 준비  2026-09-07  높음  -
+1   [x]   설거지     -           보통  집안일
+
+오늘 완료 2건 · 전체 3 · 미완료 1 · 오늘까지 0 · 기한 지남 0
+```
+
+### 무엇을 어디에 넣었나 (프로덕션 51줄)
+
+| 파일 | 줄 | 추가한 것 |
+|---|---|---|
+| `todoapp/models.py` | +26 | `local_date_of(timestamp)` — 완료시각 문자열 → **로컬 기준 날짜**. 순수 함수 |
+| `todoapp/service.py` | +14 | `completed_on(day=None)` — 그 날 완료한 목록. 기본값은 오늘 |
+| `todoapp/cli.py` | +11 | `summary` 서브커맨드. 표는 기존 `format_table`을 그대로 재사용 |
+| `tests/test_cli_summary.py` | 신규 145 | 14개 |
+| `tests/test_supabase_integration.py` | +15 | 실연결 1개 (Postgres 완료시각 파싱) |
+
+### 왜 SQL로 안 걸렀나
+
+`completed_on()`은 `list("done")`으로 완료분을 받아 **파이썬에서** 날짜로 걸러낸다.
+SQL로 내리면 §6의 차이(TEXT 로컬시각 vs timestamptz UTC) 때문에 저장소별 구현이
+두 벌로 갈라지고, `Store` 프로토콜에 메서드가 하나 늘어난다. 개인용 규모에서는
+서비스 계층에서 거르는 편이 싸고, **두 저장소가 자동으로 같이 동작한다.**
+
+건수가 수만 건으로 커지면 그때 저장소로 내린다 — 그 시점에 §6 차이표를 다시 볼 것.
+
+### 확인한 것
+
+- 유닛 14개 통과 · 전체 466개 통과 (실연결 25개 포함)
+- 임시 DB로 실제 왕복: `add` → `done` → `summary`(2건) → `undone` → `summary`(1건)
+- `db/todo.db`는 0건 그대로 (읽기만 함)
+- 실연결로 PostgREST가 주는 값 확인: `'2026-09-07T07:59:27.518839+00:00'` → `2026-09-07`
+
+---
+
+## 14. `list --priority` 필터 (2026-09-07 추가)
+
+우선순위 높은 것만 골라 보는 필터다.
+
+```
+$ python3 todo.py list --priority high
+ID  상태  제목                 마감일      우선  태그
+-----------------------------------------------------
+7   [ ]   프론트엔드 PRD 작성  2026-09-08  높음  -
+8   [ ]   백엔드 PRD 작성      2026-09-08  높음  -
+```
+
+`high`/`normal`/`low`와 `1`/`2`/`3`을 모두 받는다. `--active` · `--today` · `--tag` ·
+`--search`와 자유롭게 조합된다. 잘못된 값은 SQL에 닿기 전에 `ValidationError`로 걸려
+종료코드 1이 된다.
+
+### 무엇을 어디에 넣었나 (프로덕션 27줄)
+
+| 파일 | 추가한 것 |
+|---|---|
+| `repository.py` | `_build_list_where`에 `priority = ?` 절 · `list(priority=…)` |
+| `stores/supabase_store.py` | `query.eq("priority", …)` |
+| `service.py` | `list(..., priority=…)` 통과 |
+| `cli.py` | `list --priority` 플래그 |
+| `tests/test_priority_filter.py` | 신규 16개 (4계층) |
+| `tests/test_supabase_integration.py` | +1 실연결 |
+
+### §13의 `summary`와 왜 다르게 했나
+
+| | `summary` (완료시각) | `--priority` |
+|---|---|---|
+| 어디서 거르나 | **서비스 계층** (파이썬) | **저장소** (SQL · PostgREST) |
+| 왜 | 완료시각 **모양이 저장소마다 다르다**(§6). SQL로 내리면 구현이 두 벌로 갈라진다 | `priority`는 두 저장소 모두 **같은 정수 열**이다. 갈라질 이유가 없다 |
+
+정규화는 `models.normalize_priority()` 하나를 두 저장소가 공유한다. 그래서 `high`와 `1`이
+어느 저장소에서든 똑같이 동작한다.
+
+### 남은 것
+
+웹에는 아직 없다(§11). 서비스 계층은 이미 받으므로 `routes.py`만 손대면 된다.
+
+---
+
+## 15. MCP 서버 (2026-09-07 추가)
+
+같은 서비스 계층을 모델이 직접 부를 수 있게 stdio JSON-RPC로 노출한 진입점이다.
+`cli.py`와 형제 관계다 — 유스케이스는 `service.py` 하나를 공유하고, 출력 형식만 다르다.
+
+```bash
+python3 mcp_todo.py          # stdio 서버. 사람이 직접 쓰는 용도가 아니다
+```
+
+| 파일 | 내용 |
+|---|---|
+| `todoapp/mcp_server.py` | 도구 4종 + JSON-RPC 처리 (의존성 없음, 표준 라이브러리만) |
+| `mcp_todo.py` | 진입점 (`todo.py`와 같은 위치) |
+| `../.mcp.json` | Claude Code 등록 (프로젝트 스코프, `STORAGE=sqlite`) |
+| `tests/test_mcp_server.py` | 15개 |
+
+도구: `list_todos` · `today_summary` · `add_todo` · `complete_todo`
+
+### 알아둘 것 3가지
+
+1. **MCP SDK를 쓰지 않았다.** MCP는 stdio에 줄 단위 JSON-RPC 2.0을 주고받는 규약일
+   뿐이라 표준 라이브러리로 충분하다. `requirements.txt`를 늘리지 않았다.
+2. **알림(id 없는 요청)에 응답하면 안 된다.** `notifications/initialized`에 응답을
+   보내면 클라이언트가 프로토콜 위반으로 본다. `handle()`이 `None`을 준다.
+3. **도구 실패는 JSON-RPC 오류가 아니라 `isError: true`로 내린다.** 프로토콜 오류로
+   올리면 클라이언트가 삼켜서 모델이 이유를 못 본다. `isError`면 모델이 읽고 스스로
+   고쳐 다시 부를 수 있다.
+
+### 마감일 해석은 CLI 것을 재사용한다
+
+`_resolve_due()`가 `cli.resolve_due_input()`을 부른다. '오늘·내일·+7d' 규칙이 두 벌로
+갈라지면 같은 앱에서 입력 규칙이 달라진다.
+
+---
+
+## 16. 웹에 오늘 완료 요약 · 우선순위 필터 추가 (2026-09-21)
+
+CLI에만 있던 §13·§14를 웹에도 연결했다. **서비스 계층은 이미 둘 다 받고 있었으므로**
+`routes.py`와 템플릿만 손댔다 — `service.py`·저장소는 한 줄도 건드리지 않았다.
+
+### 무엇을 어디에 넣었나
+
+| 파일 | 추가한 것 |
+|---|---|
+| `todoapp/web/routes.py` | `_current_filters()`에 `priority` 키 · `index()`가 `service.completed_on()`을 `today_done`으로 넘김 · `service.list(priority=…)` 호출 · `ValidationError` → 400 |
+| `todoapp/web/templates/index.html` | 검색 폼에 우선순위 `<select>` · "오늘 완료한 일" 카드(0건이면 렌더링 안 함) · `filter_fields()` 매크로와 범위 탭 링크에 `priority` 반영(토글·삭제·탭 이동에도 필터 유지) |
+| `tests/test_web.py` | 신규 9개 — 우선순위 필터 3, 오늘 완료 카드 3, 필터 유지·잘못된 값 처리 기존 테스트 보강 |
+
+### 왜 라우트에서 `ValidationError`를 잡아 400으로 바꾸나
+
+`scope`는 값 종류가 적어(`SCOPES` 튜플) 호출 전에 미리 검사할 수 있었다. 반면
+`priority`는 `service.list()` 안쪽(`normalize_priority`)에서야 걸러진다. 잘못된
+`scope`가 400인데 잘못된 `priority`가 500(스택트레이스 노출)이면 같은 화면에서
+오류 처리가 갈린다. `try/except`로 두 경우의 응답 모양을 맞췄다.
+
+### 확인한 것
+
+- 유닛 32개(`test_web.py`) 통과 · 전체 462개 통과 (실연결 제외)
+- 임시 SQLite로 `python3 app.py` 띄워 브라우저로 실제 왕복: 추가 → 완료 →
+  "오늘 완료 1건" 카드 표시 → `?priority=2` 필터링 → 존재하지 않는 값(`?priority=이상한값`)에
+  400 응답 확인. 실 데이터베이스(`db/todo.db`)는 건드리지 않았다.
+
+### 남은 것
+
+CLI `summary --date`·`ToDoApp/`(원본 폴더)에 대한 역이식은 아직이다(§11).
