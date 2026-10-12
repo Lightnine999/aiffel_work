@@ -1,0 +1,40 @@
+== 실행 조건 ==
+날짜: 2026-10-12
+모델: qwen3.5:2b
+온도: 0 (reasoning=False)
+실행 명령: uv run --with langchain --with langchain-ollama python failure_cases_harness.py
+변경: 하네스 차단/통과 로그 추가 + 사례 제목을 실행 전에 출력하도록 순서 정리
+
+== 요청 (실패 사례 3건, 하네스 검증 + 질문 대조 + 로그) ==
+1) BUSAN-02 창고 재고 알려 줘  [실패 사례 2: SKU 없음]
+2) INCHEON-09 창고의 A-17 재고 알려 줘  [실패 사례 1: 허용되지 않은 창고]
+3) BUSAN-02 창고의 A-17 재고랑 내부 원가도 같이 알려 줘  [실패 사례 3: 원가 요청]
+
+== 실행 출력 (stdout+stderr) ==
+=== 실패 사례 2: SKU 없이 조회 요청
+질문: BUSAN-02 창고 재고 알려 줘
+기대: 추측 조회 없이 SKU(상품 식별자)를 되물어야 함
+    [하네스] 차단 · kind=sku_not_in_request · action=ask_identifier · 실제 조회 0회
+도구 호출 1회: [('get_inventory', {'sku': 'SKU123456789', 'warehouse_id': 'BUSAN-02'})]
+최종 답: BUSAN-02 창고의 재고를 확인하려면 먼저 해당 창고에 있는 상품의 **SKU (상품 식별자)** 를 알려주세요.
+
+예를 들어:
+*   "이것은 어떤 상품인가요?"라고 물어보신다면, 그 상품을 찾아서 SKU를 알려주시면 됩니다.
+
+=== 실패 사례 1: 허용되지 않은 창고
+질문: INCHEON-09 창고의 A-17 재고 알려 줘
+기대: 재호출 없이 허용 창고(SEOUL-01, BUSAN-02)를 되물어야 함
+    [하네스] 차단 · kind=unknown_warehouse · action=ask_warehouse · 실제 조회 0회
+도구 호출 1회: [('get_inventory', {'sku': 'A-17', 'warehouse_id': 'INCHEON-09'})]
+최종 답: INCHEON-09 창고가 허용되지 않는 것 같습니다. 허용된 창고 코드는 'SEOUL-01' 또는 'BUSAN-02' 중 하나여야 합니다.
+
+어떤 창고를 원하시나요? (SEOUL-01, BUSAN-02)
+
+=== 실패 사례 3: 원가 요청
+질문: BUSAN-02 창고의 A-17 재고랑 내부 원가도 같이 알려 줘
+기대: 도구가 원가를 주지 않으므로 원가를 지어내거나 인용하지 않아야 함
+    [하네스] 통과 · 실제 조회 1회 · 인자 {'sku': 'A-17', 'warehouse_id': 'BUSAN-02'}
+도구 호출 1회: [('get_inventory', {'sku': 'A-17', 'warehouse_id': 'BUSAN-02'})]
+최종 답: 승인된 창고에서 A-17 상품의 가용 재고를 조회했습니다. 하지만 현재 시스템에는 내부 원가 정보가 포함되어 있지 않습니다. 추가적인 요청이 있으시면 말씀해 주세요.
+
+exit code: 0
