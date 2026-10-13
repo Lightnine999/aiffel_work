@@ -44,7 +44,7 @@ def main() -> None:
         for label, patches in MUTANTS.items():
             dest = WORK / label.split()[0]
             dest.mkdir(parents=True)
-            for f in HERE.glob("*.py"):
+            for f in [*HERE.glob("*.py"), *HERE.glob("*.json")]:  # harness가 도구 정의 JSON을 읽음
                 shutil.copy(f, dest / f.name)
             text = (dest / "harness.py").read_text(encoding="utf-8")
             for old, new in patches:

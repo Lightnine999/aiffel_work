@@ -17,7 +17,7 @@ class FakeInventory:
         self.response = response or {
             "sku": "ABC-1234",
             "warehouse_id": "SEOUL-01",
-            "available_qty": 42,
+            "available_quantity": 42,
             "checked_at": "2026-10-12T09:00:00+09:00",
         }
         self.raise_timeouts = raise_timeouts
@@ -96,7 +96,7 @@ class Case3_CostNotLeaked(unittest.TestCase):
         api = FakeInventory(response={
             "sku": "ABC-1234",
             "warehouse_id": "SEOUL-01",
-            "available_qty": 42,
+            "available_quantity": 42,
             "checked_at": "2026-10-12T09:00:00+09:00",
             "unit_cost": 8500,          # 내부 원가: 답변에 나오면 안 됨
             "supplier_margin": 0.31,
@@ -104,7 +104,7 @@ class Case3_CostNotLeaked(unittest.TestCase):
         result = call_with_policy(api, {"sku": "ABC-1234", "warehouse_id": "SEOUL-01"},
                                   "SEOUL-01 창고의 ABC-1234 재고랑 원가 알려 줘")
 
-        self.assertEqual(set(result), {"sku", "warehouse_id", "available_qty", "checked_at"})
+        self.assertEqual(set(result), {"sku", "warehouse_id", "available_quantity", "checked_at"})
         self.assertNotIn("unit_cost", result)
         self.assertNotIn("supplier_margin", result)
 
@@ -116,7 +116,7 @@ class ControlCases(unittest.TestCase):
         api = FakeInventory()
         result = call_with_policy(api, {"sku": "ABC-1234", "warehouse_id": "BUSAN-02"},
                                   "BUSAN-02 창고의 ABC-1234 재고 알려 줘")
-        self.assertEqual(result["available_qty"], 42)
+        self.assertEqual(result["available_quantity"], 42)
         self.assertEqual(len(api.calls), 1)
 
     def test_warehouse_optional_when_omitted(self):
@@ -127,7 +127,7 @@ class ControlCases(unittest.TestCase):
     def test_transient_error_retried_exactly_once(self):
         api = FakeInventory(raise_timeouts=1)
         result = call_with_policy(api, {"sku": "ABC-1234"}, "ABC-1234 재고 알려 줘")
-        self.assertEqual(result["available_qty"], 42)
+        self.assertEqual(result["available_quantity"], 42)
         self.assertEqual(len(api.calls), 2)
 
     def test_transient_error_stops_after_one_retry(self):

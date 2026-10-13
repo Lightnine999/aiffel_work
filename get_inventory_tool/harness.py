@@ -3,12 +3,20 @@
 모델이 어떻게 판단하든 이 계층을 통과해야만 실제 조회가 일어난다.
 """
 
+import json
+import pathlib
 import re
 from dataclasses import dataclass
 
-ALLOWED_WAREHOUSES = ("SEOUL-01", "BUSAN-02")
-SKU_MIN, SKU_MAX = 3, 32
-RESPONSE_FIELDS = ("sku", "warehouse_id", "available_qty", "checked_at")
+# 도구 정의(get_inventory.json)를 단일 출처로 읽는다. 값을 코드에 따로 적지 않는다.
+DEFINITION = json.loads(
+    (pathlib.Path(__file__).resolve().parent / "get_inventory.json").read_text(encoding="utf-8")
+)
+_PROPERTIES = DEFINITION["input_schema"]["properties"]
+ALLOWED_WAREHOUSES = tuple(_PROPERTIES["warehouse_id"]["enum"])
+SKU_MIN = _PROPERTIES["sku"]["minLength"]
+SKU_MAX = _PROPERTIES["sku"]["maxLength"]
+RESPONSE_FIELDS = tuple(DEFINITION["output"]["fields"])
 
 
 @dataclass
